@@ -1,0 +1,433 @@
+{
+  "source": "WKRuntimeBridge.h",
+  "legend": {
+    "tokenModifiers": [
+      "declaration",
+      "definition",
+      "readonly",
+      "static",
+      "deprecated",
+      "abstract",
+      "async",
+      "modification",
+      "documentation",
+      "defaultLibrary",
+      "deduced",
+      "virtual",
+      "dependentName",
+      "usedAsMutableReference",
+      "usedAsMutablePointer",
+      "constructorOrDestructor",
+      "userDefined",
+      "functionScope",
+      "classScope",
+      "fileScope",
+      "globalScope"
+    ],
+    "tokenTypes": [
+      "namespace",
+      "type",
+      "class",
+      "enum",
+      "interface",
+      "struct",
+      "typeParameter",
+      "parameter",
+      "variable",
+      "property",
+      "enumMember",
+      "event",
+      "function",
+      "method",
+      "macro",
+      "keyword",
+      "modifier",
+      "comment",
+      "string",
+      "number",
+      "regexp",
+      "operator",
+      "decorator",
+      "bracket",
+      "label",
+      "concept",
+      "unknown",
+      "identifier"
+    ]
+  },
+  "tokens": [
+    {
+      "line": 5,
+      "column": 5,
+      "length": 13,
+      "text": "TARGET_OS_OSX",
+      "tokenType": "macro",
+      "tokenModifiers": [
+        "globalScope"
+      ]
+    },
+    {
+      "line": 9,
+      "column": 1,
+      "length": 23,
+      "text": "NS_ASSUME_NONNULL_BEGIN",
+      "tokenType": "macro",
+      "tokenModifiers": [
+        "globalScope"
+      ]
+    },
+    {
+      "line": 11,
+      "column": 1,
+      "length": 17,
+      "text": "FOUNDATION_EXPORT",
+      "tokenType": "macro",
+      "tokenModifiers": [
+        "globalScope"
+      ]
+    },
+    {
+      "line": 11,
+      "column": 19,
+      "length": 13,
+      "text": "NSErrorDomain",
+      "tokenType": "class",
+      "tokenModifiers": [
+        "defaultLibrary",
+        "fileScope"
+      ]
+    },
+    {
+      "line": 11,
+      "column": 39,
+      "length": 20,
+      "text": "SYNBridgeErrorDomain",
+      "tokenType": "variable",
+      "tokenModifiers": [
+        "declaration",
+        "readonly",
+        "globalScope"
+      ]
+    },
+    {
+      "line": 13,
+      "column": 9,
+      "length": 13,
+      "text": "NS_ERROR_ENUM",
+      "tokenType": "macro",
+      "tokenModifiers": [
+        "globalScope"
+      ]
+    },
+    {
+      "line": 13,
+      "column": 45,
+      "length": 18,
+      "text": "SYNBridgeErrorCode",
+      "tokenType": "enum",
+      "tokenModifiers": [
+        "declaration",
+        "fileScope",
+        "globalScope"
+      ]
+    },
+    {
+      "line": 14,
+      "column": 5,
+      "length": 30,
+      "text": "SYNBridgeErrorCodeInvalidInput",
+      "tokenType": "enumMember",
+      "tokenModifiers": [
+        "declaration",
+        "readonly",
+        "fileScope"
+      ]
+    },
+    {
+      "line": 15,
+      "column": 5,
+      "length": 36,
+      "text": "SYNBridgeErrorCodeHandlerUnavailable",
+      "tokenType": "enumMember",
+      "tokenModifiers": [
+        "declaration",
+        "readonly",
+        "fileScope"
+      ]
+    },
+    {
+      "line": 18,
+      "column": 12,
+      "length": 16,
+      "text": "SYNBridgeRuntime",
+      "tokenType": "class",
+      "tokenModifiers": [
+        "declaration",
+        "definition",
+        "globalScope"
+      ]
+    },
+    {
+      "line": 18,
+      "column": 31,
+      "length": 8,
+      "text": "NSObject",
+      "tokenType": "class",
+      "tokenModifiers": [
+        "defaultLibrary",
+        "globalScope"
+      ]
+    },
+    {
+      "line": 19,
+      "column": 13,
+      "length": 8,
+      "text": "NSObject",
+      "tokenType": "class",
+      "tokenModifiers": [
+        "defaultLibrary",
+        "globalScope"
+      ]
+    },
+    {
+      "line": 19,
+      "column": 24,
+      "length": 22,
+      "text": "objectResultFromTarget",
+      "tokenType": "function",
+      "tokenModifiers": [
+        "declaration",
+        "static",
+        "classScope"
+      ]
+    },
+    {
+      "line": 19,
+      "column": 48,
+      "length": 8,
+      "text": "NSObject",
+      "tokenType": "class",
+      "tokenModifiers": [
+        "defaultLibrary",
+        "globalScope"
+      ]
+    },
+    {
+      "line": 19,
+      "column": 59,
+      "length": 6,
+      "text": "target",
+      "tokenType": "parameter",
+      "tokenModifiers": [
+        "declaration",
+        "definition",
+        "functionScope"
+      ]
+    },
+    {
+      "line": 19,
+      "column": 66,
+      "length": 12,
+      "text": "selectorName",
+      "tokenType": "function",
+      "tokenModifiers": [
+        "declaration",
+        "static",
+        "classScope"
+      ]
+    },
+    {
+      "line": 19,
+      "column": 80,
+      "length": 8,
+      "text": "NSString",
+      "tokenType": "class",
+      "tokenModifiers": [
+        "defaultLibrary",
+        "globalScope"
+      ]
+    },
+    {
+      "line": 19,
+      "column": 91,
+      "length": 12,
+      "text": "selectorName",
+      "tokenType": "parameter",
+      "tokenModifiers": [
+        "declaration",
+        "definition",
+        "functionScope"
+      ]
+    },
+    {
+      "line": 20,
+      "column": 13,
+      "length": 8,
+      "text": "NSNumber",
+      "tokenType": "class",
+      "tokenModifiers": [
+        "defaultLibrary",
+        "globalScope"
+      ]
+    },
+    {
+      "line": 20,
+      "column": 24,
+      "length": 20,
+      "text": "flagResultFromTarget",
+      "tokenType": "function",
+      "tokenModifiers": [
+        "declaration",
+        "static",
+        "classScope"
+      ]
+    },
+    {
+      "line": 20,
+      "column": 46,
+      "length": 8,
+      "text": "NSObject",
+      "tokenType": "class",
+      "tokenModifiers": [
+        "defaultLibrary",
+        "globalScope"
+      ]
+    },
+    {
+      "line": 20,
+      "column": 57,
+      "length": 6,
+      "text": "target",
+      "tokenType": "parameter",
+      "tokenModifiers": [
+        "declaration",
+        "definition",
+        "functionScope"
+      ]
+    },
+    {
+      "line": 20,
+      "column": 64,
+      "length": 12,
+      "text": "selectorName",
+      "tokenType": "function",
+      "tokenModifiers": [
+        "declaration",
+        "static",
+        "classScope"
+      ]
+    },
+    {
+      "line": 20,
+      "column": 78,
+      "length": 8,
+      "text": "NSString",
+      "tokenType": "class",
+      "tokenModifiers": [
+        "defaultLibrary",
+        "globalScope"
+      ]
+    },
+    {
+      "line": 20,
+      "column": 89,
+      "length": 12,
+      "text": "selectorName",
+      "tokenType": "parameter",
+      "tokenModifiers": [
+        "declaration",
+        "definition",
+        "functionScope"
+      ]
+    },
+    {
+      "line": 21,
+      "column": 4,
+      "length": 4,
+      "text": "BOOL",
+      "tokenType": "type",
+      "tokenModifiers": [
+        "defaultLibrary",
+        "fileScope"
+      ]
+    },
+    {
+      "line": 21,
+      "column": 9,
+      "length": 18,
+      "text": "invokeVoidOnTarget",
+      "tokenType": "method",
+      "tokenModifiers": [
+        "declaration",
+        "classScope"
+      ]
+    },
+    {
+      "line": 21,
+      "column": 29,
+      "length": 8,
+      "text": "NSObject",
+      "tokenType": "class",
+      "tokenModifiers": [
+        "defaultLibrary",
+        "globalScope"
+      ]
+    },
+    {
+      "line": 21,
+      "column": 40,
+      "length": 6,
+      "text": "target",
+      "tokenType": "parameter",
+      "tokenModifiers": [
+        "declaration",
+        "definition",
+        "functionScope"
+      ]
+    },
+    {
+      "line": 21,
+      "column": 47,
+      "length": 12,
+      "text": "selectorName",
+      "tokenType": "method",
+      "tokenModifiers": [
+        "declaration",
+        "classScope"
+      ]
+    },
+    {
+      "line": 21,
+      "column": 61,
+      "length": 8,
+      "text": "NSString",
+      "tokenType": "class",
+      "tokenModifiers": [
+        "defaultLibrary",
+        "globalScope"
+      ]
+    },
+    {
+      "line": 21,
+      "column": 72,
+      "length": 12,
+      "text": "selectorName",
+      "tokenType": "parameter",
+      "tokenModifiers": [
+        "declaration",
+        "definition",
+        "functionScope"
+      ]
+    },
+    {
+      "line": 24,
+      "column": 1,
+      "length": 21,
+      "text": "NS_ASSUME_NONNULL_END",
+      "tokenType": "macro",
+      "tokenModifiers": [
+        "globalScope"
+      ]
+    }
+  ]
+}

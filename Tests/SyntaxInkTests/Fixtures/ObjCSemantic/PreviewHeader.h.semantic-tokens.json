@@ -1,0 +1,150 @@
+{
+  "source": "PreviewHeader.h",
+  "legend": {
+    "tokenModifiers": [
+      "declaration",
+      "definition",
+      "readonly",
+      "static",
+      "deprecated",
+      "abstract",
+      "async",
+      "modification",
+      "documentation",
+      "defaultLibrary",
+      "deduced",
+      "virtual",
+      "dependentName",
+      "usedAsMutableReference",
+      "usedAsMutablePointer",
+      "constructorOrDestructor",
+      "userDefined",
+      "functionScope",
+      "classScope",
+      "fileScope",
+      "globalScope"
+    ],
+    "tokenTypes": [
+      "namespace",
+      "type",
+      "class",
+      "enum",
+      "interface",
+      "struct",
+      "typeParameter",
+      "parameter",
+      "variable",
+      "property",
+      "enumMember",
+      "event",
+      "function",
+      "method",
+      "macro",
+      "keyword",
+      "modifier",
+      "comment",
+      "string",
+      "number",
+      "regexp",
+      "operator",
+      "decorator",
+      "bracket",
+      "label",
+      "concept",
+      "unknown",
+      "identifier"
+    ]
+  },
+  "tokens": [
+    {
+      "line": 4,
+      "column": 12,
+      "length": 10,
+      "text": "SYNGreeter",
+      "tokenType": "class",
+      "tokenModifiers": [
+        "declaration",
+        "definition",
+        "globalScope"
+      ]
+    },
+    {
+      "line": 4,
+      "column": 25,
+      "length": 8,
+      "text": "NSObject",
+      "tokenType": "class",
+      "tokenModifiers": [
+        "defaultLibrary",
+        "globalScope"
+      ]
+    },
+    {
+      "line": 4,
+      "column": 35,
+      "length": 9,
+      "text": "NSCopying",
+      "tokenType": "interface",
+      "tokenModifiers": [
+        "defaultLibrary",
+        "globalScope"
+      ]
+    },
+    {
+      "line": 6,
+      "column": 29,
+      "length": 8,
+      "text": "NSString",
+      "tokenType": "class",
+      "tokenModifiers": [
+        "defaultLibrary",
+        "globalScope"
+      ]
+    },
+    {
+      "line": 6,
+      "column": 39,
+      "length": 4,
+      "text": "name",
+      "tokenType": "property",
+      "tokenModifiers": [
+        "declaration",
+        "globalScope"
+      ]
+    },
+    {
+      "line": 8,
+      "column": 17,
+      "length": 12,
+      "text": "initWithName",
+      "tokenType": "method",
+      "tokenModifiers": [
+        "declaration",
+        "classScope"
+      ]
+    },
+    {
+      "line": 8,
+      "column": 31,
+      "length": 8,
+      "text": "NSString",
+      "tokenType": "class",
+      "tokenModifiers": [
+        "defaultLibrary",
+        "globalScope"
+      ]
+    },
+    {
+      "line": 8,
+      "column": 42,
+      "length": 4,
+      "text": "name",
+      "tokenType": "parameter",
+      "tokenModifiers": [
+        "declaration",
+        "definition",
+        "functionScope"
+      ]
+    }
+  ]
+}
