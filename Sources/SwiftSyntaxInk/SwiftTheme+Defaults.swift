@@ -1,112 +1,60 @@
 import SyntaxInk
 
-// MARK: - Default
-
 extension SwiftTheme {
-    /// The default light Xcode theme.
-    ///
-    /// Use `Color.xcodeBackgroundDefaultColor` as the background color for this theme.
-    public static let `default` = {
-        let base = SyntaxStyle(
-            font: .system(size: 16, weight: .regular, design: .monospaced),
-            color: SyntaxColor(red: 0, green: 0, blue: 0)
-        )
-        return `default`(base)
-    }()
+    public static let bare = BuiltInThemeFactory.exactTheme(.bare)
+    public static func bare(_ base: SyntaxStyle) -> SwiftTheme { BuiltInThemeFactory.mergedTheme(.bare, base: base) }
 
-    /// The default light Xcode theme.
-    /// You can change the base style.
-    ///
-    /// Use `Color.xcodeBackgroundDefaultColor` as the background color for this theme.
-    public static func `default`(_ base: SyntaxStyle) -> SwiftTheme {
-        SwiftTheme { kind in
-            var style = base
-            switch kind {
-            case .plainText: break
-            case .keywords:
-                style.color = SyntaxColor(red: 155, green: 35, blue: 147)
-                style.font.weight = .semibold
-            case .comments:
-                style.color = SyntaxColor(red: 93, green: 108, blue: 121)
-            case .documentationMarkup:
-                style.font.name = "Helvetica Neue"
-                style.color = SyntaxColor(red: 93, green: 108, blue: 121)
-            case .string:
-                style.color = SyntaxColor(red: 196, green: 26, blue: 22)
-            case .numbers:
-                style.color = SyntaxColor(red: 196, green: 26, blue: 22)
-            case .preprocessorStatements:
-                style.color = SyntaxColor(red: 100, green: 56, blue: 32)
-            case .typeDeclarations:
-                style.color = SyntaxColor(red: 11, green: 79, blue: 121)
-            case .otherDeclarations:
-                style.color = SyntaxColor(red: 15, green: 104, blue: 160)
-            case .otherClassNames:
-                style.color = SyntaxColor(red: 57, green: 0, blue: 160)
-            case .otherFunctionAndMethodNames:
-                style.color = SyntaxColor(red: 108, green: 54, blue: 169)
-            case .otherTypeNames:
-                style.color = SyntaxColor(red: 57, green: 0, blue: 160)
-            case .otherPropertiesAndGlobals:
-                style.color = SyntaxColor(red: 108, green: 54, blue: 169)
-            }
-            return style
-        }
-    }
-}
+    public static let basic = BuiltInThemeFactory.exactTheme(.basic)
+    public static func basic(_ base: SyntaxStyle) -> SwiftTheme { BuiltInThemeFactory.mergedTheme(.basic, base: base) }
 
-// MARK: - Default Dark
+    public static let civic = BuiltInThemeFactory.exactTheme(.civic)
+    public static func civic(_ base: SyntaxStyle) -> SwiftTheme { BuiltInThemeFactory.mergedTheme(.civic, base: base) }
 
-extension SwiftTheme {
-    /// The default dark theme in Xcode.
-    ///
-    /// Use `Color.xcodeBackgroundDefaultDarkColor` as the background color for this theme.
-    public static let defaultDark = {
-        let base = SyntaxStyle(
-            font: .system(size: 16, weight: .medium, design: .monospaced),
-            color: SyntaxColor(red: 255, green: 255, blue: 255)
-        )
-        return defaultDark(base)
-    }()
+    public static let classicDark = BuiltInThemeFactory.exactTheme(.classicDark)
+    public static func classicDark(_ base: SyntaxStyle) -> SwiftTheme { BuiltInThemeFactory.mergedTheme(.classicDark, base: base) }
 
-    /// The default dark theme in Xcode.
-    /// The base style can be changed.
-    ///
-    /// Use `Color.xcodeBackgroundDefaultDarkColor` as the background color for this theme.
-    public static func defaultDark(_ base: SyntaxStyle) -> SwiftTheme {
-        SwiftTheme { kind in
-            var style = base
-            switch kind {
-            case .plainText: break
-            case .keywords:
-                style.color = SyntaxColor(red: 252, green: 95, blue: 163)
-                style.font.weight = .bold
-            case .comments:
-                style.color = SyntaxColor(red: 108, green: 121, blue: 134)
-            case .documentationMarkup:
-                style.color = SyntaxColor(red: 108, green: 121, blue: 134)
-                style.font.name = "Helvetica"
-                style.font.weight = .regular
-            case .string:
-                style.color = SyntaxColor(red: 252, green: 106, blue: 93)
-            case .numbers:
-                style.color = SyntaxColor(red: 208, green: 191, blue: 105)
-            case .preprocessorStatements:
-                style.color = SyntaxColor(red: 253, green: 143, blue: 63)
-            case .typeDeclarations:
-                style.color = SyntaxColor(red: 93, green: 216, blue: 255)
-            case .otherDeclarations:
-                style.color = SyntaxColor(red: 65, green: 161, blue: 192)
-            case .otherClassNames:
-                style.color = SyntaxColor(red: 208, green: 168, blue: 255)
-            case .otherFunctionAndMethodNames:
-                style.color = SyntaxColor(red: 161, green: 103, blue: 230)
-            case .otherTypeNames:
-                style.color = SyntaxColor(red: 208, green: 168, blue: 255)
-            case .otherPropertiesAndGlobals:
-                style.color = SyntaxColor(red: 161, green: 103, blue: 230)
-            }
-            return style
-        }
-    }
+    public static let classicLight = BuiltInThemeFactory.exactTheme(.classicLight)
+    public static func classicLight(_ base: SyntaxStyle) -> SwiftTheme { BuiltInThemeFactory.mergedTheme(.classicLight, base: base) }
+
+    public static let `default` = BuiltInThemeFactory.exactTheme(.default)
+    public static func `default`(_ base: SyntaxStyle) -> SwiftTheme { BuiltInThemeFactory.mergedTheme(.default, base: base) }
+
+    public static let defaultDark = BuiltInThemeFactory.exactTheme(.defaultDark)
+    public static func defaultDark(_ base: SyntaxStyle) -> SwiftTheme { BuiltInThemeFactory.mergedTheme(.defaultDark, base: base) }
+
+    public static let dusk = BuiltInThemeFactory.exactTheme(.dusk)
+    public static func dusk(_ base: SyntaxStyle) -> SwiftTheme { BuiltInThemeFactory.mergedTheme(.dusk, base: base) }
+
+    public static let highContrastDark = BuiltInThemeFactory.exactTheme(.highContrastDark)
+    public static func highContrastDark(_ base: SyntaxStyle) -> SwiftTheme { BuiltInThemeFactory.mergedTheme(.highContrastDark, base: base) }
+
+    public static let highContrastLight = BuiltInThemeFactory.exactTheme(.highContrastLight)
+    public static func highContrastLight(_ base: SyntaxStyle) -> SwiftTheme { BuiltInThemeFactory.mergedTheme(.highContrastLight, base: base) }
+
+    public static let lowKey = BuiltInThemeFactory.exactTheme(.lowKey)
+    public static func lowKey(_ base: SyntaxStyle) -> SwiftTheme { BuiltInThemeFactory.mergedTheme(.lowKey, base: base) }
+
+    public static let midnight = BuiltInThemeFactory.exactTheme(.midnight)
+    public static func midnight(_ base: SyntaxStyle) -> SwiftTheme { BuiltInThemeFactory.mergedTheme(.midnight, base: base) }
+
+    public static let presentationDark = BuiltInThemeFactory.exactTheme(.presentationDark)
+    public static func presentationDark(_ base: SyntaxStyle) -> SwiftTheme { BuiltInThemeFactory.mergedTheme(.presentationDark, base: base) }
+
+    public static let presentationLight = BuiltInThemeFactory.exactTheme(.presentationLight)
+    public static func presentationLight(_ base: SyntaxStyle) -> SwiftTheme { BuiltInThemeFactory.mergedTheme(.presentationLight, base: base) }
+
+    public static let presentationLargeDark = BuiltInThemeFactory.exactTheme(.presentationLargeDark)
+    public static func presentationLargeDark(_ base: SyntaxStyle) -> SwiftTheme { BuiltInThemeFactory.mergedTheme(.presentationLargeDark, base: base) }
+
+    public static let presentationLargeLight = BuiltInThemeFactory.exactTheme(.presentationLargeLight)
+    public static func presentationLargeLight(_ base: SyntaxStyle) -> SwiftTheme { BuiltInThemeFactory.mergedTheme(.presentationLargeLight, base: base) }
+
+    public static let printing = BuiltInThemeFactory.exactTheme(.printing)
+    public static func printing(_ base: SyntaxStyle) -> SwiftTheme { BuiltInThemeFactory.mergedTheme(.printing, base: base) }
+
+    public static let spartan = BuiltInThemeFactory.exactTheme(.spartan)
+    public static func spartan(_ base: SyntaxStyle) -> SwiftTheme { BuiltInThemeFactory.mergedTheme(.spartan, base: base) }
+
+    public static let sunset = BuiltInThemeFactory.exactTheme(.sunset)
+    public static func sunset(_ base: SyntaxStyle) -> SwiftTheme { BuiltInThemeFactory.mergedTheme(.sunset, base: base) }
 }

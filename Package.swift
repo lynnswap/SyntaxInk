@@ -21,6 +21,6 @@ let package = Package(
             ]
         ),
         .target(name: "SyntaxInk"),
-        .testTarget(name: "SyntaxInkTests", dependencies: ["SyntaxInk"]),
+        .testTarget(name: "SyntaxInkTests", dependencies: ["SyntaxInk", "SwiftSyntaxInk"]),
     ]
 )
