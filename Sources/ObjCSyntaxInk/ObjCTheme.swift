@@ -30,6 +30,9 @@ extension ObjCTheme {
         case preprocessorStatements
         case typeDeclarations
         case otherDeclarations
+        case projectClassNames
+        case projectFunctionAndMethodNames
+        case projectTypeNames
         case otherClassNames
         case otherFunctionAndMethodNames
         case otherTypeNames
