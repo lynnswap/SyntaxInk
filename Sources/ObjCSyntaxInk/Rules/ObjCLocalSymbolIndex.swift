@@ -79,7 +79,7 @@ struct ObjCLocalSymbolIndex: Sendable {
         case .other:
             candidateScopes = []
         case nil:
-            candidateScopes = [.global, .class]
+            candidateScopes = [.global]
         }
 
         return candidateScopes.contains { scope in

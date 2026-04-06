@@ -211,6 +211,76 @@ import Testing
     #expect(styleAtSubstring("methodForSelector", inOccurrenceOf: "[target methodForSelector:selector]", source: objcLocalOriginSource, tokens: tokens) == .otherFunctionAndMethodNames)
 }
 
+@Test func objcFallbackMethodCallWithSelfReceiverUsesLocalCallableLookup() async throws {
+    let declaration = ObjCResolvedToken(
+        text: "makeThing",
+        range: NSRange(location: 0, length: 9),
+        lexicalKind: .method,
+        resolvedKind: .methodDeclaration,
+        origin: .project,
+        referenceStyleKind: .callable,
+        receiverHint: nil,
+        isForwardClassDeclaration: false
+    )
+    let call = ObjCResolvedToken(
+        text: "makeThing",
+        range: NSRange(location: 10, length: 9),
+        lexicalKind: .method,
+        resolvedKind: .methodCall,
+        origin: nil,
+        referenceStyleKind: .callable,
+        receiverHint: .self,
+        isForwardClassDeclaration: false
+    )
+    let localSymbols = ObjCLocalSymbolIndex(semanticMatches: [], fallbackTokens: [declaration, call])
+    let context = ObjCHighlightingContext(
+        source: "[self makeThing]",
+        text: "makeThing",
+        range: call.range,
+        semantic: nil,
+        fallback: call,
+        localSymbols: localSymbols
+    )
+
+    #expect(
+        context.matchesLocalReference(
+            for: .init(
+                resolvedKind: .methodCall,
+                origin: nil,
+                referenceStyleKind: .callable
+            )
+        )
+    )
+}
+
+@Test func objcNilReceiverLookupDoesNotMatchClassScopedCallables() async throws {
+    let classMethod = ObjCResolvedToken(
+        text: "foo",
+        range: NSRange(location: 0, length: 3),
+        lexicalKind: .method,
+        resolvedKind: .methodDeclaration,
+        origin: .project,
+        referenceStyleKind: .callable,
+        receiverHint: nil,
+        isForwardClassDeclaration: false
+    )
+    let globalFunction = ObjCResolvedToken(
+        text: "bar",
+        range: NSRange(location: 4, length: 3),
+        lexicalKind: .function,
+        resolvedKind: .methodDeclaration,
+        origin: .project,
+        referenceStyleKind: .callable,
+        receiverHint: nil,
+        isForwardClassDeclaration: false
+    )
+    let localSymbols = ObjCLocalSymbolIndex(semanticMatches: [], fallbackTokens: [classMethod, globalFunction])
+
+    #expect(localSymbols.containsCallable(named: "foo", receiverHint: nil) == false)
+    #expect(localSymbols.containsCallable(named: "foo", receiverHint: .self))
+    #expect(localSymbols.containsCallable(named: "bar", receiverHint: nil))
+}
+
 @Test func objcSystemForwardDeclarationsDoNotSeedProjectOrigin() async throws {
     let tokens = ObjCGrammar().tokenize(objcSystemForwardDeclarationSource)
 

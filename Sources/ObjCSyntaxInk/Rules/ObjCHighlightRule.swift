@@ -102,7 +102,9 @@ struct ObjCHighlightingContext: Sendable {
                 break
             }
         }
-        return fallback?.lexicalKind == .function || fallback?.lexicalKind == .constructor
+        return fallback?.lexicalKind == .function ||
+            fallback?.lexicalKind == .constructor ||
+            fallback?.lexicalKind == .method
     }
 
     private func typeResolution(for semantic: ObjCSemanticMatch, referenceStyleKind: ObjCReferenceStyleKind) -> ObjCTokenResolution {
