@@ -223,7 +223,7 @@ public struct ObjCGrammar: Grammar {
 
             let semanticToken = semanticTokens.first { ObjCParserConfiguration.contains($0.token.range, interval: range) }
             let fallbackToken = fallbackTokens.first { ObjCParserConfiguration.contains($0.range, interval: range) }
-            let resolvedKind = preferredResolvedKind(semantic: semanticToken, fallback: fallbackToken)
+            let resolvedKind = preferredResolvedKind(semantic: semanticToken, fallback: fallbackToken, in: source)
 
             let token = ObjCResolvedToken(
                 text: String(source[stringRange]),
@@ -251,9 +251,10 @@ public struct ObjCGrammar: Grammar {
 
     private func preferredResolvedKind(
         semantic: (token: ObjCSemanticToken, classification: ObjCSemanticClassification)?,
-        fallback: ObjCResolvedToken?
+        fallback: ObjCResolvedToken?,
+        in source: String
     ) -> ObjCResolvedKind? {
-        if let bucket = preferredVisualBucket(semantic: semantic, fallback: fallback) {
+        if let bucket = preferredVisualBucket(semantic: semantic, fallback: fallback, in: source) {
             return bucket.resolvedKind
         }
         return fallback?.resolvedKind
@@ -261,7 +262,8 @@ public struct ObjCGrammar: Grammar {
 
     private func preferredVisualBucket(
         semantic: (token: ObjCSemanticToken, classification: ObjCSemanticClassification)?,
-        fallback: ObjCResolvedToken?
+        fallback: ObjCResolvedToken?,
+        in source: String
     ) -> ObjCXcodeVisualBucket? {
         if let fallback, fallback.resolvedKind == .plain {
             return .implementationTypeName
@@ -271,7 +273,8 @@ public struct ObjCGrammar: Grammar {
             if let overridden = overriddenVisualBucket(
                 for: semantic.token,
                 classification: semantic.classification,
-                fallback: fallback
+                fallback: fallback,
+                in: source
             ) {
                 return overridden
             }
@@ -372,8 +375,20 @@ public struct ObjCGrammar: Grammar {
     private func overriddenVisualBucket(
         for token: ObjCSemanticToken,
         classification: ObjCSemanticClassification,
-        fallback: ObjCResolvedToken?
+        fallback: ObjCResolvedToken?,
+        in source: String
     ) -> ObjCXcodeVisualBucket? {
+        if classification.rawKind == .macro,
+           ObjCParserConfiguration.literalLikeMacroIdentifiers.contains(token.text) {
+            if ObjCParserConfiguration.isInPreprocessorDirective(token.range, in: source) {
+                return .preprocessor
+            }
+
+            if fallback?.resolvedKind != .preprocessor {
+                return .keyword
+            }
+        }
+
         if ObjCParserConfiguration.keywordBuiltinTypeIdentifiers.contains(token.text),
            isTypeLike(semanticRawKind: classification.rawKind, fallback: fallback) {
             return .keywordBuiltinType
@@ -587,6 +602,9 @@ private enum ObjCParserConfiguration {
             if isKeywordLikeIdentifier(text) {
                 return .keyword
             }
+            if literalLikeMacroIdentifiers.contains(text) {
+                return isInPreprocessorDirective(capture.node.range, in: source) ? .preprocessor : .keyword
+            }
             if isEnumMember(capture.node, in: source) {
                 return .enumMember
             }
@@ -678,7 +696,8 @@ private enum ObjCParserConfiguration {
     }
 
     static func syntheticSupplementalCaptures(in source: String) -> [ResolvedCapture] {
-        syntheticMacroCaptures(in: source) + syntheticNullabilityCaptures(in: source)
+        syntheticMacroCaptures(in: source) +
+        syntheticNullabilityCaptures(in: source)
     }
 
     private static func syntheticMacroCaptures(in source: String) -> [ResolvedCapture] {
@@ -698,11 +717,19 @@ private enum ObjCParserConfiguration {
                     return nil
                 }
 
+                let resolvedKind: ObjCResolvedKind
+                if literalLikeMacroIdentifiers.contains(text),
+                   isInPreprocessorDirective(match.range, in: source) {
+                    resolvedKind = .preprocessor
+                } else {
+                    resolvedKind = .macro
+                }
+
                 return ResolvedCapture(
                     range: match.range,
                     lexicalKind: .keyword,
-                    resolvedKind: .macro,
-                    priority: capturePriority(for: .macro) + 10
+                    resolvedKind: resolvedKind,
+                    priority: capturePriority(for: resolvedKind) + 10
                 )
             }
     }
@@ -750,6 +777,14 @@ private enum ObjCParserConfiguration {
         "IMP",
         "BOOL",
         "instancetype",
+    ]
+
+    static let literalLikeMacroIdentifiers: Set<String> = [
+        "nil",
+        "Nil",
+        "NULL",
+        "YES",
+        "NO",
     ]
 
     static let sdkTypedefTypeIdentifiers: Set<String> = [
@@ -1029,13 +1064,35 @@ private enum ObjCParserConfiguration {
         return nil
     }
 
-    private static func linePrefixHasHash(_ range: NSRange, in source: String) -> Bool {
+    static func linePrefixHasHash(_ range: NSRange, in source: String) -> Bool {
         let string = source as NSString
         let lineRange = string.lineRange(for: range)
         let prefixLength = max(0, range.location - lineRange.location)
         let prefix = string.substring(with: NSRange(location: lineRange.location, length: prefixLength))
             .trimmingCharacters(in: .whitespaces)
         return prefix.hasPrefix("#")
+    }
+
+    static func isInPreprocessorDirective(_ range: NSRange, in source: String) -> Bool {
+        let string = source as NSString
+        var directiveStartRange = string.lineRange(for: range)
+
+        while directiveStartRange.location > 0 {
+            let previousLineProbe = NSRange(location: directiveStartRange.location - 1, length: 0)
+            let previousLineRange = string.lineRange(for: previousLineProbe)
+            let previousLine = string.substring(with: previousLineRange)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+
+            guard previousLine.hasSuffix("\\") else {
+                break
+            }
+
+            directiveStartRange = previousLineRange
+        }
+
+        let directiveStartLine = string.substring(with: directiveStartRange)
+            .trimmingCharacters(in: .whitespaces)
+        return directiveStartLine.hasPrefix("#")
     }
 
     private static func looksLikeTypeName(_ text: String) -> Bool {

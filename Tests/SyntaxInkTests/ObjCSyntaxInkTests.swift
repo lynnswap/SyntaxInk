@@ -67,6 +67,38 @@ import Testing
     #expect(styleAtSubstring(":", inOccurrenceOf: "objectResultFromTarget:", source: source, tokens: tokens) == .plainText)
 }
 
+@Test func objcLiteralLikeMacrosPreferKeywordStylingOverPreprocessor() async throws {
+    let source = try playgroundSample(named: "objcImplementationSample")
+    let tokens = ObjCGrammar().tokenize(source)
+    let headerSource = try playgroundSample(named: "objcHeaderSample")
+    let headerTokens = ObjCGrammar().tokenize(headerSource)
+
+    #expect(tokens.map(\.text).joined() == source)
+    #expect(tokenStyle("NULL", in: tokens) == .keywords)
+    #expect(tokenStyle("nil", in: tokens) == .keywords)
+    #expect(tokenStyle("Nil", in: tokens) == .keywords)
+    #expect(tokenStyle("YES", in: tokens) == .keywords)
+    #expect(tokenStyle("NO", in: tokens) == .keywords)
+    #expect(tokenStyle("return", in: tokens) == .keywords)
+    #expect(tokenStyle("TARGET_OS_OSX", in: headerTokens) == .preprocessorStatements)
+    #expect(tokenStyle("FOUNDATION_EXPORT", in: headerTokens) == .preprocessorStatements)
+    #expect(tokenStyle("NS_ERROR_ENUM", in: headerTokens) == .preprocessorStatements)
+}
+
+@Test func objcDirectiveLiteralLikeMacrosDoNotUseKeywordOverride() async throws {
+    let source = """
+#if NO
+#define FLAG \\
+    NO
+#endif
+"""
+    let tokens = ObjCGrammar().tokenize(source)
+
+    #expect(tokens.map(\.text).joined() == source)
+    #expect(styleAtSubstring("NO", inOccurrenceOf: "#if NO", source: source, tokens: tokens) == .preprocessorStatements)
+    #expect(styleAtSubstring("NO", inOccurrenceOf: "    NO", source: source, tokens: tokens) != .keywords)
+}
+
 @Test func objcBuiltinAndTypeFamilyIdentifiersMatchXcodeBuckets() async throws {
     let source = objcBuiltinTypeSource
     let tokens = ObjCGrammar().tokenize(source)
