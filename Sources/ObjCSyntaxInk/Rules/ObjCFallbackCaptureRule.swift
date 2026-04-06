@@ -170,25 +170,39 @@ enum ObjCFallbackCaptureRule {
         return .init(source: prefix + code + suffix, offset: prefix.utf16.count)
     }
 
+    static func debugFragmentWrapperKind(for code: String) -> String {
+        switch fragmentWrapperKind(for: code) {
+        case .none:
+            return "none"
+        case .implementation:
+            return "implementation"
+        case .interface:
+            return "interface"
+        }
+    }
+
     private static func fragmentWrapperKind(for code: String) -> FragmentWrapperKind {
+        let classificationSource = sourceIgnoringCommentsAndStrings(code)
+
         guard
-            code.contains("@interface") == false,
-            code.contains("@implementation") == false,
-            code.contains("@protocol") == false
+            classificationSource.contains("@interface") == false,
+            classificationSource.contains("@implementation") == false,
+            classificationSource.contains("@protocol") == false
         else {
             return .none
         }
 
-        guard containsMethodFragment(code) else {
+        guard containsMethodFragment(classificationSource) else {
             return .none
         }
 
-        if code.contains("{") {
+        switch methodFragmentKind(in: classificationSource) {
+        case .implementation:
             return .implementation
-        }
-
-        if code.contains(";") {
+        case .interface:
             return .interface
+        case .none:
+            break
         }
 
         return .none
@@ -201,6 +215,194 @@ enum ObjCFallbackCaptureRule {
 
         let range = NSRange(location: 0, length: (code as NSString).length)
         return regex.firstMatch(in: code, range: range) != nil
+    }
+
+    private static func methodFragmentKind(in source: String) -> FragmentWrapperKind {
+        guard let regex = try? NSRegularExpression(pattern: #"(?m)^\s*[+-]\s*\("#) else {
+            return .none
+        }
+
+        let utf16 = Array(source.utf16)
+        let fullRange = NSRange(location: 0, length: utf16.count)
+        var sawDeclaration = false
+
+        for match in regex.matches(in: source, range: fullRange) {
+            var parenDepth = 0
+            var index = match.range.location
+
+            while index < utf16.count {
+                switch utf16[index] {
+                case 40: // (
+                    parenDepth += 1
+                case 41: // )
+                    parenDepth = max(0, parenDepth - 1)
+                case 123 where parenDepth == 0: // {
+                    return .implementation
+                case 59 where parenDepth == 0: // ;
+                    sawDeclaration = true
+                    index = utf16.count
+                    continue
+                default:
+                    break
+                }
+
+                index += 1
+            }
+        }
+
+        return sawDeclaration && isDeclarationOnlyMethodFragment(source) ? .interface : .none
+    }
+
+    private static func isDeclarationOnlyMethodFragment(_ source: String) -> Bool {
+        let string = source as NSString
+        let utf16 = Array(source.utf16)
+        var parenDepth = 0
+        var braceDepth = 0
+        var chunkStart = 0
+        var index = 0
+        var chunks: [String] = []
+
+        while index < utf16.count {
+            switch utf16[index] {
+            case 40: // (
+                parenDepth += 1
+            case 41: // )
+                parenDepth = max(0, parenDepth - 1)
+            case 123: // {
+                braceDepth += 1
+            case 125: // }
+                braceDepth = max(0, braceDepth - 1)
+            case 59 where parenDepth == 0 && braceDepth == 0: // ;
+                let range = NSRange(location: chunkStart, length: index + 1 - chunkStart)
+                chunks.append(string.substring(with: range))
+                chunkStart = index + 1
+            default:
+                break
+            }
+
+            index += 1
+        }
+
+        if chunkStart < utf16.count {
+            chunks.append(string.substring(from: chunkStart))
+        }
+
+        return chunks.allSatisfy { chunk in
+            let trimmed = chunk.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard trimmed.isEmpty == false else {
+                return true
+            }
+
+            return trimmed.hasPrefix("- (") ||
+                trimmed.hasPrefix("+ (") ||
+                trimmed.hasPrefix("typedef") ||
+                trimmed.hasPrefix("@class") ||
+                trimmed.hasPrefix("@protocol") ||
+                trimmed.hasPrefix("@property") ||
+                trimmed.hasPrefix("#") ||
+                trimmed.hasPrefix("NS_ASSUME_NONNULL_BEGIN") ||
+                trimmed.hasPrefix("NS_ASSUME_NONNULL_END") ||
+                trimmed.hasPrefix("FOUNDATION_EXPORT")
+        }
+    }
+
+    private static func sourceIgnoringCommentsAndStrings(_ source: String) -> String {
+        enum State {
+            case normal
+            case lineComment
+            case blockComment
+            case string(delimiter: UnicodeScalar)
+        }
+
+        let scalars = Array(source.unicodeScalars)
+        var result = String.UnicodeScalarView()
+        var state = State.normal
+        var index = 0
+
+        while index < scalars.count {
+            let scalar = scalars[index]
+            let next = index + 1 < scalars.count ? scalars[index + 1] : nil
+
+            switch state {
+            case .normal:
+                if scalar == "/", next == "/" {
+                    result.append(maskedScalar(scalar))
+                    result.append(maskedScalar(next!))
+                    state = .lineComment
+                    index += 2
+                    continue
+                }
+
+                if scalar == "/", next == "*" {
+                    result.append(maskedScalar(scalar))
+                    result.append(maskedScalar(next!))
+                    state = .blockComment
+                    index += 2
+                    continue
+                }
+
+                if scalar == "@", next == "\"" {
+                    result.append(maskedScalar(scalar))
+                    result.append(maskedScalar(next!))
+                    state = .string(delimiter: "\"")
+                    index += 2
+                    continue
+                }
+
+                if scalar == "\"" || scalar == "'" {
+                    result.append(maskedScalar(scalar))
+                    state = .string(delimiter: scalar)
+                    index += 1
+                    continue
+                }
+
+                result.append(scalar)
+                index += 1
+
+            case .lineComment:
+                result.append(maskedScalar(scalar))
+                index += 1
+                if CharacterSet.newlines.contains(scalar) {
+                    state = .normal
+                }
+
+            case .blockComment:
+                if scalar == "*", next == "/" {
+                    result.append(maskedScalar(scalar))
+                    result.append(maskedScalar(next!))
+                    state = .normal
+                    index += 2
+                    continue
+                }
+
+                result.append(maskedScalar(scalar))
+                index += 1
+
+            case let .string(delimiter):
+                if scalar == "\\" {
+                    result.append(maskedScalar(scalar))
+                    if let next {
+                        result.append(maskedScalar(next))
+                        index += 2
+                    } else {
+                        index += 1
+                    }
+                    continue
+                }
+
+                result.append(maskedScalar(scalar))
+                index += 1
+                if scalar == delimiter {
+                    state = .normal
+                }
+            }
+        }
+
+        return String(result)
+    }
+
+    private static func maskedScalar(_ scalar: UnicodeScalar) -> UnicodeScalar {
+        CharacterSet.newlines.contains(scalar) ? scalar : " "
     }
 
     private static func shiftedCaptures(
