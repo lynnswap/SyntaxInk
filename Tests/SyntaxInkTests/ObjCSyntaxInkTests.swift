@@ -24,7 +24,7 @@ import Testing
     #expect(tokenStyle("@implementation", in: tokens) == .keywords)
     #expect(tokenStyle("SYNGreeter", after: "@implementation", in: tokens) == .plainText)
     #expect(tokenStyle("instancetype", in: tokens) == .keywords)
-    #expect(tokenStyleExact("NSString", afterExact: "(", in: tokens) == .otherTypeNames)
+    #expect(styleAtSubstring("NSString", inOccurrenceOf: "- (NSString *)description", source: objcImplementationSource, tokens: tokens) == .otherTypeNames)
     #expect(tokenStyle("initWithName", in: tokens) == .otherDeclarations)
     #expect(tokenStyle("description", in: tokens) == .otherDeclarations)
     #expect(tokenStyle("SYN-", in: tokens) == .string)
@@ -64,6 +64,7 @@ import Testing
     #expect(tokenStyle("selectorName", after: "target", in: tokens) == .otherDeclarations)
     #expect(tokenStyleExactOccurrence("selectorName", occurrence: 2, in: tokens) == .otherPropertiesAndGlobals)
     #expect(styleAtSubstring("+", inOccurrenceOf: "objectResultFromTarget", source: source, tokens: tokens) == .plainText)
+    #expect(styleAtSubstring(":", inOccurrenceOf: "objectResultFromTarget:", source: source, tokens: tokens) == .plainText)
 }
 
 @Test func objcBuiltinAndTypeFamilyIdentifiersMatchXcodeBuckets() async throws {
@@ -86,6 +87,7 @@ import Testing
     #expect(tokenStyleExactOccurrence("WKContentWorld", occurrence: 1, in: tokens) == .otherTypeNames)
     #expect(tokenStyle("frameInfosForWebView", in: tokens) == .otherDeclarations)
     #expect(styleAtSubstring("completionHandler", inOccurrenceOf: "completionHandler:", source: source, tokens: tokens) == .otherDeclarations)
+    #expect(styleAtSubstring(":", inOccurrenceOf: "completionHandler:", source: source, tokens: tokens) == .plainText)
     #expect(styleAtSubstring("id", inOccurrenceOf: "delegate:", source: source, tokens: tokens) == .keywords)
     #expect(styleAtSubstring("id", inOccurrenceOf: "buffer:", source: source, tokens: tokens) == .keywords)
     #expect(tokenStyle("nullable", in: tokens) == .keywords)
