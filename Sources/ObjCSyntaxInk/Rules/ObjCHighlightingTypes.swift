@@ -3,7 +3,6 @@ import Foundation
 enum ObjCSymbolOrigin: Sendable, Equatable {
     case project
     case external
-    case system
 }
 
 enum ObjCReferenceStyleKind: Sendable, Equatable {

@@ -3,6 +3,11 @@ import SwiftTreeSitter
 import TreeSitterObjc
 
 enum ObjCFallbackCaptureRule {
+    private struct ParseSource {
+        let source: String
+        let offset: Int
+    }
+
     static let keywordBuiltinTypeIdentifiers: Set<String> = [
         "void",
         "id",
@@ -30,6 +35,7 @@ enum ObjCFallbackCaptureRule {
     ]
 
     static func resolvedTokens(in code: String) -> [ObjCResolvedToken] {
+        let parseSource = parseSource(for: code)
         let parser = Parser()
         do {
             try parser.setLanguage(language)
@@ -46,7 +52,7 @@ enum ObjCFallbackCaptureRule {
             )]
         }
 
-        guard let tree = parser.parse(code) else {
+        guard let tree = parser.parse(parseSource.source) else {
             return [ObjCResolvedToken(
                 text: code,
                 range: NSRange(location: 0, length: code.utf16.count),
@@ -61,37 +67,39 @@ enum ObjCFallbackCaptureRule {
 
         var captures = query
             .execute(in: tree)
-            .resolve(with: .init(string: code))
+            .resolve(with: .init(string: parseSource.source))
             .flatMap(\.captures)
             .sorted()
             .compactMap { capture -> ResolvedCapture? in
                 guard let lexicalKind = lexicalKind(for: capture) else {
                     return nil
                 }
-                guard let resolvedKind = resolvedKind(for: capture, lexicalKind: lexicalKind, in: code) else {
+                guard let resolvedKind = resolvedKind(for: capture, lexicalKind: lexicalKind, in: parseSource.source) else {
                     return nil
                 }
 
-                let text = captureText(in: code, range: capture.range)
+                let text = captureText(in: parseSource.source, range: capture.range)
                 return ResolvedCapture(
                     range: capture.range,
                     lexicalKind: lexicalKind,
                     resolvedKind: resolvedKind,
+                    origin: nil,
                     referenceStyleKind: referenceStyleKind(
                         for: capture,
                         text: text,
                         resolvedKind: resolvedKind,
-                        in: code
+                        in: parseSource.source
                     ),
                     callableScope: callableScope(for: capture.node, lexicalKind: lexicalKind, resolvedKind: resolvedKind),
-                    receiverHint: receiverHint(for: capture.node, lexicalKind: lexicalKind, resolvedKind: resolvedKind, in: code),
+                    receiverHint: receiverHint(for: capture.node, lexicalKind: lexicalKind, resolvedKind: resolvedKind, in: parseSource.source),
                     isForwardClassDeclaration: isForwardClassDeclaration(for: capture.node, resolvedKind: resolvedKind),
                     priority: capturePriority(for: resolvedKind)
                 )
             }
 
-        captures.append(contentsOf: syntheticSupplementalCaptures(in: code))
-        return tokens(in: code, resolvedCaptures: captures)
+        captures.append(contentsOf: syntheticSupplementalCaptures(in: parseSource.source, existingCaptures: captures))
+        let shiftedCaptures = shiftedCaptures(captures, offset: parseSource.offset, originalLength: code.utf16.count)
+        return tokens(in: code, resolvedCaptures: shiftedCaptures)
     }
 
     static func contains(_ range: NSRange, interval: NSRange) -> Bool {
@@ -140,6 +148,61 @@ enum ObjCFallbackCaptureRule {
             fatalError("Failed to build Objective-C tree-sitter query: \(error)")
         }
     }()
+
+    private static func parseSource(for code: String) -> ParseSource {
+        guard needsImplementationFragmentWrapper(code) else {
+            return .init(source: code, offset: 0)
+        }
+
+        let prefix = "@implementation _SyntaxInkFragment\n"
+        let suffix = "\n@end\n"
+        return .init(source: prefix + code + suffix, offset: prefix.utf16.count)
+    }
+
+    private static func needsImplementationFragmentWrapper(_ code: String) -> Bool {
+        guard
+            code.contains("@interface") == false,
+            code.contains("@implementation") == false,
+            code.contains("@protocol") == false
+        else {
+            return false
+        }
+
+        guard code.contains("{") else { return false }
+        guard let regex = try? NSRegularExpression(pattern: #"(?m)^\s*[+-]\s*\("#) else {
+            return false
+        }
+
+        let range = NSRange(location: 0, length: (code as NSString).length)
+        return regex.firstMatch(in: code, range: range) != nil
+    }
+
+    private static func shiftedCaptures(
+        _ captures: [ResolvedCapture],
+        offset: Int,
+        originalLength: Int
+    ) -> [ResolvedCapture] {
+        guard offset > 0 else { return captures }
+
+        return captures.compactMap { capture in
+            let lower = capture.range.location - offset
+            guard lower >= 0, lower + capture.range.length <= originalLength else {
+                return nil
+            }
+
+            return ResolvedCapture(
+                range: NSRange(location: lower, length: capture.range.length),
+                lexicalKind: capture.lexicalKind,
+                resolvedKind: capture.resolvedKind,
+                origin: capture.origin,
+                referenceStyleKind: capture.referenceStyleKind,
+                callableScope: capture.callableScope,
+                receiverHint: capture.receiverHint,
+                isForwardClassDeclaration: capture.isForwardClassDeclaration,
+                priority: capture.priority
+            )
+        }
+    }
 
     private static func lexicalKind(for capture: QueryCapture) -> ObjCLexicalKind? {
         guard let head = capture.nameComponents.first else { return nil }
@@ -216,6 +279,9 @@ enum ObjCFallbackCaptureRule {
             }
             if isMacroLikeIdentifier(text, node: capture.node, in: source) {
                 return .macro
+            }
+            if isOpaqueStructTagReference(capture.node, in: source) || isForwardClassDeclarationReference(capture.node) {
+                return .typeReference
             }
             if isEnumTypeDefinitionName(capture.node, in: source) {
                 return .enumType
@@ -300,7 +366,12 @@ enum ObjCFallbackCaptureRule {
         switch resolvedKind {
         case .methodDeclaration, .methodCall:
             return .callable
-        case .typeReference, .typeDeclaration, .enumType:
+        case .enumType:
+            return .typeName
+        case .typeReference, .typeDeclaration:
+            if prefersTypeNameStyle(text, node: capture.node, in: source) {
+                return .typeName
+            }
             return isClassLikeTypeIdentifier(text, node: capture.node, in: source) ? .className : .typeName
         default:
             return nil
@@ -366,7 +437,7 @@ enum ObjCFallbackCaptureRule {
                 range: range,
                 lexicalKind: selectedCapture?.lexicalKind,
                 resolvedKind: selectedCapture?.resolvedKind,
-                origin: nil,
+                origin: selectedCapture?.origin,
                 referenceStyleKind: selectedCapture?.referenceStyleKind,
                 callableScope: selectedCapture?.callableScope,
                 receiverHint: selectedCapture?.receiverHint,
@@ -412,8 +483,10 @@ enum ObjCFallbackCaptureRule {
         return String(source[stringRange])
     }
 
-    private static func syntheticSupplementalCaptures(in source: String) -> [ResolvedCapture] {
-        syntheticMacroCaptures(in: source) + syntheticNullabilityCaptures(in: source)
+    private static func syntheticSupplementalCaptures(in source: String, existingCaptures: [ResolvedCapture]) -> [ResolvedCapture] {
+        syntheticMacroCaptures(in: source) +
+            syntheticNullabilityCaptures(in: source) +
+            syntheticEnumTypeCaptures(in: source, existingCaptures: existingCaptures)
     }
 
     private static func syntheticMacroCaptures(in source: String) -> [ResolvedCapture] {
@@ -468,6 +541,32 @@ enum ObjCFallbackCaptureRule {
                 priority: capturePriority(for: .keyword) + 5
             )
         }
+    }
+
+    private static func syntheticEnumTypeCaptures(in source: String, existingCaptures: [ResolvedCapture]) -> [ResolvedCapture] {
+        let pattern = #"\b(?:NS(?:_ERROR)?_ENUM|NS_OPTIONS|CF_ENUM|CF_OPTIONS)\s*\(\s*[^,]+,\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return [] }
+
+        return regex.matches(in: source, range: NSRange(location: 0, length: (source as NSString).length))
+            .compactMap { match -> ResolvedCapture? in
+                guard match.numberOfRanges > 1 else { return nil }
+                let declarationRange = match.range(at: 1)
+                guard existingCaptures.contains(where: { capture in
+                    contains(capture.range, interval: declarationRange) &&
+                        (capture.lexicalKind == .comment || capture.lexicalKind == .string)
+                }) == false else {
+                    return nil
+                }
+                return ResolvedCapture(
+                    range: declarationRange,
+                    lexicalKind: .type,
+                    resolvedKind: .typeDeclaration,
+                    referenceStyleKind: .className,
+                    receiverHint: nil,
+                    isForwardClassDeclaration: false,
+                    priority: capturePriority(for: .typeDeclaration) + 10
+                )
+            }
     }
 
     private static func isDocumentationComment(_ range: NSRange, in source: String) -> Bool {
@@ -747,12 +846,56 @@ enum ObjCFallbackCaptureRule {
         return contains(receiver.range, interval: node.range)
     }
 
+    private static func isForwardClassDeclarationReference(_ node: Node) -> Bool {
+        hasAncestor(node, matching: ["class_declaration"])
+    }
+
+    private static func isOpaqueStructTagReference(_ node: Node, in source: String) -> Bool {
+        guard let declaration = nearestAncestor(of: node, matching: ["type_definition", "declaration"]) else {
+            return false
+        }
+        let declarationText = captureText(in: source, range: declaration.range)
+        guard declarationText.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("typedef") else {
+            return false
+        }
+        let escapedTagName = NSRegularExpression.escapedPattern(for: captureText(in: source, range: node.range))
+        let declarationRange = NSRange(location: 0, length: (declarationText as NSString).length)
+        guard let tagRegex = try? NSRegularExpression(pattern: #"struct\s+\#(escapedTagName)\b"#),
+              let tagMatch = tagRegex.firstMatch(in: declarationText, range: declarationRange) else {
+            return false
+        }
+
+        let trailingLocation = NSMaxRange(tagMatch.range)
+        let trailingLength = max(0, NSMaxRange(declarationRange) - trailingLocation)
+        let trailing = (declarationText as NSString).substring(with: NSRange(location: trailingLocation, length: trailingLength))
+        guard trailing.contains("{") == false else {
+            return false
+        }
+
+        let trailingRange = NSRange(location: 0, length: (trailing as NSString).length)
+        let trailingPattern = #"(?s)^\s*\*\s*(?:(?:const|_Nonnull|_Nullable|_Null_unspecified|__nonnull|__nullable|__attribute__\s*\(\([^)]*\)\))\s*)*[A-Za-z_][A-Za-z0-9_]*\s*(?:/\*.*?\*/\s*)*;\s*$"#
+        guard let trailingRegex = try? NSRegularExpression(pattern: trailingPattern) else {
+            return false
+        }
+
+        return trailingRegex.firstMatch(in: trailing, range: trailingRange) != nil
+    }
+
     private static func isClassLikeTypeIdentifier(_ text: String, node: Node, in source: String) -> Bool {
         guard looksLikeTypeName(text) else { return false }
         guard keywordBuiltinTypeIdentifiers.contains(text) == false else { return false }
         guard sdkTypedefTypeIdentifiers.contains(text) == false else { return false }
         guard isEnumTypeDefinitionName(node, in: source) == false else { return false }
         return true
+    }
+
+    private static func prefersTypeNameStyle(_ text: String, node: Node, in source: String) -> Bool {
+        sdkTypedefTypeIdentifiers.contains(text) ||
+            text.hasSuffix("Ref") ||
+            text.hasSuffix("Flags") ||
+            text.hasSuffix("Options") ||
+            text.hasSuffix("ErrorCode") ||
+            text.hasSuffix("ErrorDomain")
     }
 
     private static func isForwardClassDeclaration(for node: Node, resolvedKind: ObjCResolvedKind) -> Bool {
@@ -842,6 +985,7 @@ private struct ResolvedCapture {
     let range: NSRange
     let lexicalKind: ObjCLexicalKind
     let resolvedKind: ObjCResolvedKind
+    let origin: ObjCSymbolOrigin?
     let referenceStyleKind: ObjCReferenceStyleKind?
     let callableScope: ObjCCallableScope?
     let receiverHint: ObjCReceiverHint?
@@ -852,6 +996,7 @@ private struct ResolvedCapture {
         range: NSRange,
         lexicalKind: ObjCLexicalKind,
         resolvedKind: ObjCResolvedKind,
+        origin: ObjCSymbolOrigin? = nil,
         referenceStyleKind: ObjCReferenceStyleKind?,
         callableScope: ObjCCallableScope? = nil,
         receiverHint: ObjCReceiverHint?,
@@ -861,6 +1006,7 @@ private struct ResolvedCapture {
         self.range = range
         self.lexicalKind = lexicalKind
         self.resolvedKind = resolvedKind
+        self.origin = origin
         self.referenceStyleKind = referenceStyleKind
         self.callableScope = callableScope
         self.receiverHint = receiverHint
