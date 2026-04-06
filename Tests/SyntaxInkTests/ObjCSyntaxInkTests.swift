@@ -137,6 +137,25 @@ import Testing
     #expect(tokenStyle("nullable", in: tokens) == .keywords)
 }
 
+@Test func objcImplementationBodyExternalTypesUseSystemReferenceStyles() async throws {
+    let source = try playgroundSample(named: "objcImplementationSample")
+    let tokens = ObjCGrammar().tokenize(source)
+
+    #expect(styleAtSubstring("NSString", inOccurrenceOf: "for (NSString *setterName in setters)", source: source, tokens: tokens) == .otherClassNames)
+    #expect(styleAtSubstring("WKContentWorld", inOccurrenceOf: "Class worldClass = [WKContentWorld class];", source: source, tokens: tokens) == .otherClassNames)
+}
+
+@Test func objcImplementationMethodSignatureMatchesXcodeBuckets() async throws {
+    let source = try playgroundSample(named: "objcImplementationSample")
+    let tokens = ObjCGrammar().tokenize(source)
+
+    #expect(styleAtSubstring("boolResultFromTarget", inOccurrenceOf: "boolResultFromTarget:(NSObject *)target selectorName:(NSString *)selectorName", source: source, tokens: tokens) == .otherDeclarations)
+    #expect(styleAtSubstringOccurrence("selectorName", occurrence: 1, inOccurrenceOf: "boolResultFromTarget:(NSObject *)target selectorName:(NSString *)selectorName", source: source, tokens: tokens) == .otherDeclarations)
+    #expect(styleAtSubstringOccurrence("selectorName", occurrence: 2, inOccurrenceOf: "boolResultFromTarget:(NSObject *)target selectorName:(NSString *)selectorName", source: source, tokens: tokens) == .otherPropertiesAndGlobals)
+    #expect(styleAtSubstring("+", inOccurrenceOf: "boolResultFromTarget:(NSObject *)target selectorName:(NSString *)selectorName", source: source, tokens: tokens) == .plainText)
+    #expect(styleAtSubstring(":", inOccurrenceOf: "boolResultFromTarget:(NSObject *)target selectorName:(NSString *)selectorName", source: source, tokens: tokens) == .plainText)
+}
+
 @Test func objcBuiltInThemesExposeRepresentativeStyles() async throws {
     assertStyle(ObjCTheme.default.configuration.styleResolver(.plainText), equals: themeExpectations.defaultTheme.plain)
     assertStyle(ObjCTheme.defaultDark.configuration.styleResolver(.keywords), equals: themeExpectations.defaultDarkKeyword)
@@ -323,6 +342,36 @@ import Testing
     )
 }
 
+@Test func objcImplementationBodyTypeReferencesStayTypeReferencesInFallback() async throws {
+    let source = try playgroundSample(named: "objcImplementationSample")
+    let tokens = ObjCFallbackCaptureRule.resolvedTokens(in: source)
+
+    #expect(
+        resolvedKindAtSubstring(
+            "NSString",
+            inOccurrenceOf: "for (NSString *setterName in setters)",
+            source: source,
+            tokens: tokens
+        ) == .typeReference
+    )
+    #expect(
+        resolvedKindAtSubstring(
+            "WKContentWorld",
+            inOccurrenceOf: "Class worldClass = [WKContentWorld class];",
+            source: source,
+            tokens: tokens
+        ) == .typeReference
+    )
+}
+
+@Test func objcFallbackMethodSignatureUsesFunctionLexicalBuckets() async throws {
+    let source = try playgroundSample(named: "objcImplementationSample")
+    let tokens = ObjCFallbackCaptureRule.resolvedTokens(in: source)
+
+    #expect(lexicalKindAtSubstring("boolResultFromTarget", inOccurrenceOf: "boolResultFromTarget:(NSObject *)target selectorName:(NSString *)selectorName", source: source, tokens: tokens) == .function)
+    #expect(lexicalKindAtSubstringOccurrence("selectorName", occurrence: 1, inOccurrenceOf: "boolResultFromTarget:(NSObject *)target selectorName:(NSString *)selectorName", source: source, tokens: tokens) == .function)
+}
+
 @Test func objcNilReceiverLookupDoesNotMatchClassScopedCallables() async throws {
     let classMethod = ObjCResolvedToken(
         text: "foo",
@@ -507,6 +556,94 @@ private func styleAtSubstring(
     guard needleRange.location != NSNotFound else { return nil }
 
     return tokens.first { NSLocationInRange(needleRange.location, $0.range) }?.styleKind
+}
+
+private func styleAtSubstringOccurrence(
+    _ needle: String,
+    occurrence: Int,
+    inOccurrenceOf anchor: String,
+    source: String,
+    tokens: [ObjCToken]
+) -> ObjCTheme.StyleKind? {
+    let string = source as NSString
+    let anchorRange = string.range(of: anchor)
+    guard anchorRange.location != NSNotFound else { return nil }
+    let searchRange = string.lineRange(for: anchorRange)
+
+    var currentRange = searchRange
+    for index in 1...occurrence {
+        let needleRange = string.range(of: needle, options: [], range: currentRange)
+        guard needleRange.location != NSNotFound else { return nil }
+        if index == occurrence {
+            return tokens.first { NSLocationInRange(needleRange.location, $0.range) }?.styleKind
+        }
+
+        let nextLocation = NSMaxRange(needleRange)
+        currentRange = NSRange(location: nextLocation, length: NSMaxRange(searchRange) - nextLocation)
+    }
+
+    return nil
+}
+
+private func resolvedKindAtSubstring(
+    _ needle: String,
+    inOccurrenceOf anchor: String,
+    source: String,
+    tokens: [ObjCResolvedToken]
+) -> ObjCResolvedKind? {
+    let string = source as NSString
+    let anchorRange = string.range(of: anchor)
+    guard anchorRange.location != NSNotFound else { return nil }
+
+    let searchRange = string.lineRange(for: anchorRange)
+    let needleRange = string.range(of: needle, options: [], range: searchRange)
+    guard needleRange.location != NSNotFound else { return nil }
+
+    return tokens.first { NSLocationInRange(needleRange.location, $0.range) }?.resolvedKind
+}
+
+private func lexicalKindAtSubstring(
+    _ needle: String,
+    inOccurrenceOf anchor: String,
+    source: String,
+    tokens: [ObjCResolvedToken]
+) -> ObjCLexicalKind? {
+    let string = source as NSString
+    let anchorRange = string.range(of: anchor)
+    guard anchorRange.location != NSNotFound else { return nil }
+
+    let searchRange = string.lineRange(for: anchorRange)
+    let needleRange = string.range(of: needle, options: [], range: searchRange)
+    guard needleRange.location != NSNotFound else { return nil }
+
+    return tokens.first { NSLocationInRange(needleRange.location, $0.range) }?.lexicalKind
+}
+
+private func lexicalKindAtSubstringOccurrence(
+    _ needle: String,
+    occurrence: Int,
+    inOccurrenceOf anchor: String,
+    source: String,
+    tokens: [ObjCResolvedToken]
+) -> ObjCLexicalKind? {
+    let string = source as NSString
+    let anchorRange = string.range(of: anchor)
+    guard anchorRange.location != NSNotFound else { return nil }
+    let searchRange = string.lineRange(for: anchorRange)
+
+    var currentRange = searchRange
+    for index in 1...occurrence {
+        let needleRange = string.range(of: needle, options: [], range: currentRange)
+        guard needleRange.location != NSNotFound else { return nil }
+        if index == occurrence {
+            return tokens.first { NSLocationInRange(needleRange.location, $0.range) }?.lexicalKind
+        }
+
+        let nextLocation = NSMaxRange(needleRange)
+        currentRange = NSRange(location: nextLocation, length: NSMaxRange(searchRange) - nextLocation)
+    }
+
+    return nil
 }
 
 private func fixtureURL(named name: String) -> URL {

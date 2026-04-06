@@ -111,6 +111,7 @@ public struct ObjCGrammar: Grammar {
                 resolvedKind: resolution?.resolvedKind ?? fallback?.resolvedKind,
                 origin: resolution?.origin ?? fallback?.origin,
                 referenceStyleKind: resolution?.referenceStyleKind ?? fallback?.referenceStyleKind,
+                callableScope: fallback?.callableScope,
                 receiverHint: fallback?.receiverHint,
                 isForwardClassDeclaration: fallback?.isForwardClassDeclaration ?? false
             )
@@ -124,6 +125,7 @@ public struct ObjCGrammar: Grammar {
                     resolvedKind: last.resolvedKind ?? token.resolvedKind,
                     origin: last.origin ?? token.origin,
                     referenceStyleKind: last.referenceStyleKind ?? token.referenceStyleKind,
+                    callableScope: last.callableScope ?? token.callableScope,
                     receiverHint: last.receiverHint ?? token.receiverHint,
                     isForwardClassDeclaration: last.isForwardClassDeclaration || token.isForwardClassDeclaration
                 )

@@ -83,6 +83,7 @@ enum ObjCFallbackCaptureRule {
                         resolvedKind: resolvedKind,
                         in: code
                     ),
+                    callableScope: callableScope(for: capture.node, lexicalKind: lexicalKind, resolvedKind: resolvedKind),
                     receiverHint: receiverHint(for: capture.node, lexicalKind: lexicalKind, resolvedKind: resolvedKind, in: code),
                     isForwardClassDeclaration: isForwardClassDeclaration(for: capture.node, resolvedKind: resolvedKind),
                     priority: capturePriority(for: resolvedKind)
@@ -367,6 +368,7 @@ enum ObjCFallbackCaptureRule {
                 resolvedKind: selectedCapture?.resolvedKind,
                 origin: nil,
                 referenceStyleKind: selectedCapture?.referenceStyleKind,
+                callableScope: selectedCapture?.callableScope,
                 receiverHint: selectedCapture?.receiverHint,
                 isForwardClassDeclaration: selectedCapture?.isForwardClassDeclaration ?? false
             )
@@ -380,6 +382,7 @@ enum ObjCFallbackCaptureRule {
                     resolvedKind: last.resolvedKind ?? token.resolvedKind,
                     origin: last.origin ?? token.origin,
                     referenceStyleKind: last.referenceStyleKind ?? token.referenceStyleKind,
+                    callableScope: last.callableScope ?? token.callableScope,
                     receiverHint: last.receiverHint ?? token.receiverHint,
                     isForwardClassDeclaration: last.isForwardClassDeclaration || token.isForwardClassDeclaration
                 )
@@ -390,6 +393,18 @@ enum ObjCFallbackCaptureRule {
         }
 
         return tokens
+    }
+
+    private static func callableScope(
+        for node: Node,
+        lexicalKind: ObjCLexicalKind,
+        resolvedKind: ObjCResolvedKind
+    ) -> ObjCCallableScope? {
+        guard resolvedKind == .methodDeclaration else { return nil }
+        if hasAncestor(node, matching: ["method_definition", "method_declaration"]) {
+            return .class
+        }
+        return lexicalKind == .function ? .global : .class
     }
 
     private static func captureText(in source: String, range: NSRange) -> String {
@@ -536,7 +551,21 @@ enum ObjCFallbackCaptureRule {
     }
 
     private static func isImplementationTypeDeclarationName(_ node: Node) -> Bool {
-        hasAncestor(node, matching: ["class_implementation"])
+        guard let implementation = nearestAncestor(of: node, matching: ["class_implementation"]) else {
+            return false
+        }
+
+        for index in 0..<implementation.childCount {
+            guard let child = implementation.child(at: index) else {
+                continue
+            }
+            guard child.nodeType == "identifier" || child.nodeType == "type_identifier" else {
+                continue
+            }
+            return contains(child.range, interval: node.range)
+        }
+
+        return false
     }
 
     private static func isTypeDefinitionName(_ node: Node, in source: String) -> Bool {
@@ -580,7 +609,10 @@ enum ObjCFallbackCaptureRule {
     }
 
     private static func isMacroLikeFunctionCapture(_ capture: QueryCapture, text: String, in source: String) -> Bool {
-        isMacroLikeIdentifier(text, node: capture.node, in: source)
+        if hasAncestor(capture.node, matching: ["method_definition", "method_declaration"]) {
+            return false
+        }
+        return isMacroLikeIdentifier(text, node: capture.node, in: source)
     }
 
     private static func isMacroLikeIdentifier(_ text: String, node: Node, in source: String) -> Bool {
@@ -632,23 +664,42 @@ enum ObjCFallbackCaptureRule {
             return true
         }
 
-        return isDeclarationTypeReference(node) || isStructDeclarationTypeReference(node) || isAtomicDeclarationTypeReference(node)
+        return isDeclarationTypeReference(node) ||
+            isForStatementTypeReference(node) ||
+            isStructDeclarationTypeReference(node) ||
+            isAtomicDeclarationTypeReference(node)
     }
 
     private static func isDeclarationTypeReference(_ node: Node) -> Bool {
-        guard hasAncestor(node, matching: ["declaration", "parameter_declaration"]) else {
+        guard let declaration = nearestAncestor(of: node, matching: ["declaration", "parameter_declaration"]) else {
             return false
         }
 
-        return hasAncestor(node, matching: [
-            "init_declarator",
-            "function_declarator",
-            "pointer_declarator",
-            "array_declarator",
-            "parenthesized_declarator",
-            "block_pointer_declarator",
-            "keyword_declarator",
-        ]) == false
+        for index in 0..<declaration.childCount {
+            guard declaration.fieldNameForChild(at: index) == "type",
+                  let child = declaration.child(at: index) else {
+                continue
+            }
+            return contains(child.range, interval: node.range)
+        }
+
+        return false
+    }
+
+    private static func isForStatementTypeReference(_ node: Node) -> Bool {
+        guard let statement = nearestAncestor(of: node, matching: ["for_statement"]) else {
+            return false
+        }
+
+        for index in 0..<statement.childCount {
+            guard statement.fieldNameForChild(at: index) == "type",
+                  let child = statement.child(at: index) else {
+                continue
+            }
+            return contains(child.range, interval: node.range)
+        }
+
+        return false
     }
 
     private static func isStructDeclarationTypeReference(_ node: Node) -> Bool {
@@ -792,7 +843,28 @@ private struct ResolvedCapture {
     let lexicalKind: ObjCLexicalKind
     let resolvedKind: ObjCResolvedKind
     let referenceStyleKind: ObjCReferenceStyleKind?
+    let callableScope: ObjCCallableScope?
     let receiverHint: ObjCReceiverHint?
     let isForwardClassDeclaration: Bool
     let priority: Int
+
+    init(
+        range: NSRange,
+        lexicalKind: ObjCLexicalKind,
+        resolvedKind: ObjCResolvedKind,
+        referenceStyleKind: ObjCReferenceStyleKind?,
+        callableScope: ObjCCallableScope? = nil,
+        receiverHint: ObjCReceiverHint?,
+        isForwardClassDeclaration: Bool,
+        priority: Int
+    ) {
+        self.range = range
+        self.lexicalKind = lexicalKind
+        self.resolvedKind = resolvedKind
+        self.referenceStyleKind = referenceStyleKind
+        self.callableScope = callableScope
+        self.receiverHint = receiverHint
+        self.isForwardClassDeclaration = isForwardClassDeclaration
+        self.priority = priority
+    }
 }

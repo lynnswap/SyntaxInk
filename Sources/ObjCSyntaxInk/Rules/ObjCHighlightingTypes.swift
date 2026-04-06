@@ -19,6 +19,11 @@ enum ObjCReceiverHint: Sendable, Equatable {
     case other
 }
 
+enum ObjCCallableScope: Sendable, Equatable {
+    case global
+    case `class`
+}
+
 enum ObjCLexicalKind: Sendable, Equatable {
     case comment
     case string
@@ -103,8 +108,31 @@ struct ObjCResolvedToken: Sendable {
     let resolvedKind: ObjCResolvedKind?
     let origin: ObjCSymbolOrigin?
     let referenceStyleKind: ObjCReferenceStyleKind?
+    let callableScope: ObjCCallableScope?
     let receiverHint: ObjCReceiverHint?
     let isForwardClassDeclaration: Bool
+
+    init(
+        text: String,
+        range: NSRange,
+        lexicalKind: ObjCLexicalKind?,
+        resolvedKind: ObjCResolvedKind?,
+        origin: ObjCSymbolOrigin?,
+        referenceStyleKind: ObjCReferenceStyleKind?,
+        callableScope: ObjCCallableScope? = nil,
+        receiverHint: ObjCReceiverHint?,
+        isForwardClassDeclaration: Bool
+    ) {
+        self.text = text
+        self.range = range
+        self.lexicalKind = lexicalKind
+        self.resolvedKind = resolvedKind
+        self.origin = origin
+        self.referenceStyleKind = referenceStyleKind
+        self.callableScope = callableScope
+        self.receiverHint = receiverHint
+        self.isForwardClassDeclaration = isForwardClassDeclaration
+    }
 
     var styleKind: ObjCTheme.StyleKind {
         resolvedKind?.styleKind(origin: origin, referenceStyleKind: referenceStyleKind) ?? .plainText

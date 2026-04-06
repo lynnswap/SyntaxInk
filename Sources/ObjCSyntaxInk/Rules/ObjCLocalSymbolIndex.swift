@@ -54,7 +54,15 @@ struct ObjCLocalSymbolIndex: Sendable {
                 guard token.isForwardClassDeclaration == false else { continue }
                 collected.insert(.init(kind: .type, name: token.text, scope: .global))
             case .methodDeclaration:
-                let scope: ObjCSymbolScope = token.lexicalKind == .function ? .global : .class
+                let scope: ObjCSymbolScope
+                switch token.callableScope {
+                case .global:
+                    scope = .global
+                case .class:
+                    scope = .class
+                case nil:
+                    scope = token.lexicalKind == .function ? .global : .class
+                }
                 collected.insert(.init(kind: .callable, name: token.text, scope: scope))
             default:
                 break
