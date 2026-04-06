@@ -290,7 +290,7 @@ private func playgroundSample(named name: String) throws -> String {
         .deletingLastPathComponent()
         .appendingPathComponent("Sources")
         .appendingPathComponent("ObjCSyntaxInk")
-        .appendingPathComponent("ObjCPlaygroundSamples.swift")
+        .appendingPathComponent("ObjCPlayground.swift")
 
     let source = try String(contentsOf: sourceURL, encoding: .utf8)
     let startMarker = "let \(name) = \"\"\"\n"
