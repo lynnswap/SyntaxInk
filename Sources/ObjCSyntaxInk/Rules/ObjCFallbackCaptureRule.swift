@@ -8,6 +8,12 @@ enum ObjCFallbackCaptureRule {
         let offset: Int
     }
 
+    private enum FragmentWrapperKind {
+        case none
+        case implementation
+        case interface
+    }
+
     static let keywordBuiltinTypeIdentifiers: Set<String> = [
         "void",
         "id",
@@ -150,25 +156,45 @@ enum ObjCFallbackCaptureRule {
     }()
 
     private static func parseSource(for code: String) -> ParseSource {
-        guard needsImplementationFragmentWrapper(code) else {
+        let prefix: String
+        switch fragmentWrapperKind(for: code) {
+        case .none:
             return .init(source: code, offset: 0)
+        case .implementation:
+            prefix = "@implementation _SyntaxInkFragment\n"
+        case .interface:
+            prefix = "@interface _SyntaxInkFragment : NSObject\n"
         }
 
-        let prefix = "@implementation _SyntaxInkFragment\n"
         let suffix = "\n@end\n"
         return .init(source: prefix + code + suffix, offset: prefix.utf16.count)
     }
 
-    private static func needsImplementationFragmentWrapper(_ code: String) -> Bool {
+    private static func fragmentWrapperKind(for code: String) -> FragmentWrapperKind {
         guard
             code.contains("@interface") == false,
             code.contains("@implementation") == false,
             code.contains("@protocol") == false
         else {
-            return false
+            return .none
         }
 
-        guard code.contains("{") else { return false }
+        guard containsMethodFragment(code) else {
+            return .none
+        }
+
+        if code.contains("{") {
+            return .implementation
+        }
+
+        if code.contains(";") {
+            return .interface
+        }
+
+        return .none
+    }
+
+    private static func containsMethodFragment(_ code: String) -> Bool {
         guard let regex = try? NSRegularExpression(pattern: #"(?m)^\s*[+-]\s*\("#) else {
             return false
         }
