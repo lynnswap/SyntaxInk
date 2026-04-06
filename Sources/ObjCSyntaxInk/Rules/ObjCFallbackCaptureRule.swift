@@ -312,7 +312,7 @@ enum ObjCFallbackCaptureRule {
         resolvedKind: ObjCResolvedKind,
         in source: String
     ) -> ObjCReceiverHint? {
-        guard lexicalKind == .method, resolvedKind == .methodCall else {
+        guard (lexicalKind == .method || lexicalKind == .constructor), resolvedKind == .methodCall else {
             return nil
         }
         guard

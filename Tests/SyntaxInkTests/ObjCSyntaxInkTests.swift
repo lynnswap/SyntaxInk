@@ -203,6 +203,14 @@ import Testing
     #expect(styleAtSubstring("makeThing", inOccurrenceOf: "[SYNLocalThing makeThing]", source: objcLocalOriginSource, tokens: tokens) == .projectFunctionAndMethodNames)
 }
 
+@Test func objcSameFileConstructorReferencesUseProjectFunctionStyles() async throws {
+    let tokens = ObjCGrammar().tokenize(objcLocalConstructorOriginSource)
+
+    #expect(tokens.map(\.text).joined() == objcLocalConstructorOriginSource)
+    #expect(styleAtSubstring("init", inOccurrenceOf: "- (instancetype)init", source: objcLocalConstructorOriginSource, tokens: tokens) == .otherDeclarations)
+    #expect(styleAtSubstring("init", inOccurrenceOf: "[self init]", source: objcLocalConstructorOriginSource, tokens: tokens) == .projectFunctionAndMethodNames)
+}
+
 @Test func objcImportedSdkMethodReferencesStaySystemScoped() async throws {
     let tokens = ObjCGrammar().tokenize(objcLocalOriginSource)
 
@@ -236,6 +244,68 @@ import Testing
     let context = ObjCHighlightingContext(
         source: "[self makeThing]",
         text: "makeThing",
+        range: call.range,
+        semantic: nil,
+        fallback: call,
+        localSymbols: localSymbols
+    )
+
+    #expect(
+        context.matchesLocalReference(
+            for: .init(
+                resolvedKind: .methodCall,
+                origin: nil,
+                referenceStyleKind: .callable
+            )
+        )
+    )
+}
+
+@Test func objcFallbackConstructorCallsCaptureReceiverHints() async throws {
+    let tokens = ObjCFallbackCaptureRule.resolvedTokens(in: objcLocalConstructorOriginSource)
+
+    #expect(tokens.first { $0.text == "init" && $0.receiverHint == .self } != nil)
+    #expect(tokens.first { $0.text == "init" && $0.receiverHint == .typeName("SYNLocalInitThing") } != nil)
+}
+
+@Test func objcFallbackConstructorCallWithTypeReceiverUsesLocalCallableLookup() async throws {
+    let typeDeclaration = ObjCResolvedToken(
+        text: "SYNLocalInitThing",
+        range: NSRange(location: 0, length: 16),
+        lexicalKind: .type,
+        resolvedKind: .typeDeclaration,
+        origin: .project,
+        referenceStyleKind: .className,
+        receiverHint: nil,
+        isForwardClassDeclaration: false
+    )
+    let declaration = ObjCResolvedToken(
+        text: "init",
+        range: NSRange(location: 17, length: 4),
+        lexicalKind: .method,
+        resolvedKind: .methodDeclaration,
+        origin: .project,
+        referenceStyleKind: .callable,
+        receiverHint: nil,
+        isForwardClassDeclaration: false
+    )
+    let call = ObjCResolvedToken(
+        text: "init",
+        range: NSRange(location: 22, length: 4),
+        lexicalKind: .constructor,
+        resolvedKind: .methodCall,
+        origin: nil,
+        referenceStyleKind: .callable,
+        receiverHint: .typeName("SYNLocalInitThing"),
+        isForwardClassDeclaration: false
+    )
+    let localSymbols = ObjCLocalSymbolIndex(
+        semanticMatches: [],
+        fallbackTokens: [typeDeclaration, declaration, call]
+    )
+    let context = ObjCHighlightingContext(
+        source: "[SYNLocalInitThing init]",
+        text: "init",
         range: call.range,
         semantic: nil,
         fallback: call,
@@ -588,6 +658,25 @@ private let objcLocalOriginSource = """
         }
     }
     return nil;
+}
+@end
+"""
+
+private let objcLocalConstructorOriginSource = """
+#import <Foundation/Foundation.h>
+
+@interface SYNLocalInitThing : NSObject
+- (instancetype)init;
++ (instancetype)factory;
+@end
+
+@implementation SYNLocalInitThing
+- (instancetype)init {
+    return [self init];
+}
+
++ (instancetype)factory {
+    return [SYNLocalInitThing init];
 }
 @end
 """
