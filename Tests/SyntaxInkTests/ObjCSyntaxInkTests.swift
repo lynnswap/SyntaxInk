@@ -39,16 +39,114 @@ import Testing
     #expect(tokenStyle("description", after: "7", in: tokens) == .otherFunctionAndMethodNames)
 }
 
+@Test func objcNakedImplementationFragmentPreservesMethodSignatureBuckets() async throws {
+    let source = """
++ (NSObject *)objectResultFromTarget:(NSObject *)target selectorName:(NSString *)selectorName {
+    SEL selector = NSSelectorFromString(selectorName);
+    if (![target respondsToSelector:selector]) {
+        return nil;
+    }
+
+    typedef id (*Getter)(id, SEL);
+    IMP implementation = [target methodForSelector:selector];
+    if (implementation == NULL) {
+        return nil;
+    }
+
+    Getter function = (Getter)implementation;
+    id result = function(target, selector);
+    return [result isKindOfClass:[NSObject class]] ? result : nil;
+}
+"""
+    let tokens = ObjCGrammar().tokenize(source)
+
+    #expect(tokens.map(\.text).joined() == source)
+    #expect(styleAtSubstring("NSObject", inOccurrenceOf: "objectResultFromTarget:(NSObject *)target", source: source, tokens: tokens) == .otherClassNames)
+    #expect(styleAtSubstring("objectResultFromTarget", inOccurrenceOf: "objectResultFromTarget:(NSObject *)target", source: source, tokens: tokens) == .otherDeclarations)
+    #expect(styleAtSubstringOccurrence("selectorName", occurrence: 1, inOccurrenceOf: "selectorName:(NSString *)selectorName", source: source, tokens: tokens) == .otherDeclarations)
+    #expect(styleAtSubstringOccurrence("selectorName", occurrence: 2, inOccurrenceOf: "selectorName:(NSString *)selectorName", source: source, tokens: tokens) == .otherPropertiesAndGlobals)
+    #expect(styleAtSubstring("NSString", inOccurrenceOf: "selectorName:(NSString *)selectorName", source: source, tokens: tokens) == .otherClassNames)
+    #expect(styleAtSubstring("methodForSelector", inOccurrenceOf: "[target methodForSelector:selector]", source: source, tokens: tokens) == .otherFunctionAndMethodNames)
+}
+
 @Test func objcImplementationOpaqueStructTypedefSeparatesStructTagAndAliasStyles() async throws {
     let tokens = ObjCGrammar().tokenize(objcImplementationSample)
 
     #expect(tokens.map(\.text).joined() == objcImplementationSample)
-    #expect(styleAtSubstring("OpaqueWKFrameHandle", inOccurrenceOf: "typedef const struct OpaqueWKFrameHandle *WKFrameHandleRef;", source: objcImplementationSample, tokens: tokens) == .projectClassNames)
+    #expect(styleAtSubstring("OpaqueWKFrameHandle", inOccurrenceOf: "typedef const struct OpaqueWKFrameHandle *WKFrameHandleRef;", source: objcImplementationSample, tokens: tokens) == .otherClassNames)
     #expect(styleAtSubstring("WKFrameHandleRef", inOccurrenceOf: "typedef const struct OpaqueWKFrameHandle *WKFrameHandleRef;", source: objcImplementationSample, tokens: tokens) == .typeDeclarations)
-    #expect(styleAtSubstring("OpaqueWKPage", inOccurrenceOf: "typedef const struct OpaqueWKPage *WKPageRef;", source: objcImplementationSample, tokens: tokens) == .projectClassNames)
+    #expect(styleAtSubstring("OpaqueWKPage", inOccurrenceOf: "typedef const struct OpaqueWKPage *WKPageRef;", source: objcImplementationSample, tokens: tokens) == .otherClassNames)
     #expect(styleAtSubstring("WKPageRef", inOccurrenceOf: "typedef const struct OpaqueWKPage *WKPageRef;", source: objcImplementationSample, tokens: tokens) == .typeDeclarations)
     #expect(styleAtSubstring("Getter", inOccurrenceOf: "typedef id (*Getter)(id, SEL);", source: objcImplementationSample, tokens: tokens) == .typeDeclarations)
     #expect(styleAtSubstring("Setter", inOccurrenceOf: "typedef void (*Setter)(id, SEL, NSInteger, BOOL);", source: objcImplementationSample, tokens: tokens) == .typeDeclarations)
+}
+
+@Test func objcMultilineOpaqueStructTypedefUsesExternalReferenceStyles() async throws {
+    let source = """
+typedef const struct OpaqueWKPage *
+WKPageRef;
+
+WKPageRef handle;
+"""
+    let tokens = ObjCGrammar().tokenize(source)
+
+    #expect(tokens.map(\.text).joined() == source)
+    #expect(styleAtSubstring("OpaqueWKPage", inOccurrenceOf: "typedef const struct OpaqueWKPage *", source: source, tokens: tokens) == .otherClassNames)
+    #expect(styleAtSubstring("WKPageRef", inOccurrenceOf: "WKPageRef;", source: source, tokens: tokens) == .typeDeclarations)
+    #expect(styleAtSubstring("WKPageRef", inOccurrenceOf: "WKPageRef handle;", source: source, tokens: tokens) == .otherTypeNames)
+}
+
+@Test func objcOpaqueStructTypedefWithNonnullQualifierUsesExternalReferenceStyles() async throws {
+    let source = """
+typedef const struct OpaqueWKPage * _Nonnull WKPageRef;
+WKPageRef handle;
+"""
+    let tokens = ObjCGrammar().tokenize(source)
+
+    #expect(tokens.map(\.text).joined() == source)
+    #expect(styleAtSubstring("OpaqueWKPage", inOccurrenceOf: "typedef const struct OpaqueWKPage * _Nonnull WKPageRef;", source: source, tokens: tokens) == .otherClassNames)
+    #expect(styleAtSubstring("WKPageRef", inOccurrenceOf: "typedef const struct OpaqueWKPage * _Nonnull WKPageRef;", source: source, tokens: tokens) == .typeDeclarations)
+    #expect(styleAtSubstring("WKPageRef", inOccurrenceOf: "WKPageRef handle;", source: source, tokens: tokens) == .otherTypeNames)
+}
+
+@Test func objcNonOpaqueStructTypedefDoesNotUseOpaqueTagHeuristic() async throws {
+    let source = """
+typedef struct WKBox {
+    int *value;
+} WKBox;
+"""
+    let tokens = ObjCGrammar().tokenize(source)
+
+    #expect(tokens.map(\.text).joined() == source)
+    #expect(styleAtSubstring("WKBox", inOccurrenceOf: "typedef struct WKBox {", source: source, tokens: tokens) == .typeDeclarations)
+}
+
+@Test func objcPlainStructPointerDeclarationsDoNotSeedOpaqueLocalTypes() async throws {
+    let source = """
+struct WKForeign *handle;
+WKForeign *otherHandle;
+"""
+    let tokens = ObjCGrammar().tokenize(source)
+
+    #expect(tokens.map(\.text).joined() == source)
+    #expect(styleAtSubstring("WKForeign", inOccurrenceOf: "struct WKForeign *handle;", source: source, tokens: tokens) == .otherClassNames)
+    #expect(styleAtSubstring("WKForeign", inOccurrenceOf: "WKForeign *otherHandle;", source: source, tokens: tokens) == .otherClassNames)
+}
+
+@Test func objcImplementationOnlyTypeReferencesUseExternalStyles() async throws {
+    let source = """
+@implementation SYNImplementationOnly
++ (SYNImplementationOnly *)makeThing {
+    return [SYNImplementationOnly new];
+}
+@end
+"""
+    let tokens = ObjCGrammar().tokenize(source)
+
+    #expect(tokens.map(\.text).joined() == source)
+    #expect(styleAtSubstring("SYNImplementationOnly", inOccurrenceOf: "@implementation SYNImplementationOnly", source: source, tokens: tokens) == .plainText)
+    #expect(styleAtSubstring("SYNImplementationOnly", inOccurrenceOf: "+ (SYNImplementationOnly *)makeThing", source: source, tokens: tokens) == .otherClassNames)
+    #expect(styleAtSubstring("SYNImplementationOnly", inOccurrenceOf: "[SYNImplementationOnly new]", source: source, tokens: tokens) == .otherClassNames)
 }
 
 @Test func objcBuiltInFunctionLikeCapturesStayHighlighted() async throws {
@@ -60,7 +158,7 @@ import Testing
     #expect(tokenStyle("__real", in: tokens) == .keywords)
 }
 
-@Test func objcSemanticAndFallbackTokenizationMatchPlaygroundHeaderExpectations() async throws {
+@Test func objcFallbackTokenizationMatchesPlaygroundHeaderExpectations() async throws {
     let source = try playgroundSample(named: "objcHeaderSample")
     let tokens = ObjCGrammar().tokenize(source)
 
@@ -137,6 +235,51 @@ import Testing
     #expect(tokenStyle("nullable", in: tokens) == .keywords)
 }
 
+@Test func objcEnumTypedefReferencesUseTypeNameStyles() async throws {
+    let source = """
+FOUNDATION_EXPORT NSErrorDomain const SYNBridgeErrorDomain;
+
+typedef NS_ERROR_ENUM(SYNBridgeErrorDomain, SYNBridgeErrorCode) {
+    SYNBridgeErrorCodeInvalidInput = 1,
+};
+
+SYNBridgeErrorCode code = SYNBridgeErrorCodeInvalidInput;
+"""
+    let tokens = ObjCGrammar().tokenize(source)
+
+    #expect(tokens.map(\.text).joined() == source)
+    #expect(styleAtSubstring("SYNBridgeErrorCode", inOccurrenceOf: "NS_ERROR_ENUM(", source: source, tokens: tokens) == .typeDeclarations)
+    #expect(styleAtSubstring("NSErrorDomain", inOccurrenceOf: "FOUNDATION_EXPORT NSErrorDomain const SYNBridgeErrorDomain;", source: source, tokens: tokens) == .otherTypeNames)
+    #expect(styleAtSubstring("SYNBridgeErrorCode", inOccurrenceOf: "SYNBridgeErrorCode code", source: source, tokens: tokens) == .otherTypeNames)
+}
+
+@Test func objcSyntheticEnumCaptureDoesNotOverrideCommentsOrStrings() async throws {
+    let source = """
+// NS_ERROR_ENUM(SYNBridgeErrorDomain, SYNCommentType)
+NSString *text = @"NS_ERROR_ENUM(SYNBridgeErrorDomain, SYNStringType)";
+"""
+    let tokens = ObjCGrammar().tokenize(source)
+
+    #expect(tokens.map(\.text).joined() == source)
+    #expect(styleAtSubstring("SYNCommentType", inOccurrenceOf: "// NS_ERROR_ENUM(", source: source, tokens: tokens) == .comments)
+    #expect(styleAtSubstring("SYNStringType", inOccurrenceOf: "@\"NS_ERROR_ENUM(", source: source, tokens: tokens) == .string)
+}
+
+@Test func objcOptionSetTypedefReferencesUseTypeNameStyles() async throws {
+    let source = """
+typedef NS_OPTIONS(NSUInteger, SYNBridgeOptions) {
+    SYNBridgeOptionFoo = 1 << 0,
+};
+
+SYNBridgeOptions options = SYNBridgeOptionFoo;
+"""
+    let tokens = ObjCGrammar().tokenize(source)
+
+    #expect(tokens.map(\.text).joined() == source)
+    #expect(styleAtSubstring("SYNBridgeOptions", inOccurrenceOf: "NS_OPTIONS(", source: source, tokens: tokens) == .typeDeclarations)
+    #expect(styleAtSubstring("SYNBridgeOptions", inOccurrenceOf: "SYNBridgeOptions options", source: source, tokens: tokens) == .otherTypeNames)
+}
+
 @Test func objcImplementationBodyExternalTypesUseSystemReferenceStyles() async throws {
     let source = try playgroundSample(named: "objcImplementationSample")
     let tokens = ObjCGrammar().tokenize(source)
@@ -202,32 +345,32 @@ import Testing
     assertStyle(ObjCTheme.default.configuration.styleResolver(.keywords), equals: themeExpectations.defaultTheme.keyword)
 }
 
-@Test func objcSameFileTypeReferencesUseProjectClassStyles() async throws {
+@Test func objcSameFileTypeReferencesUseExternalClassStyles() async throws {
     let tokens = ObjCGrammar().tokenize(objcLocalOriginSource)
 
     #expect(tokens.map(\.text).joined() == objcLocalOriginSource)
     #expect(tokenStyle("SYNLocalThing", in: tokens) == .typeDeclarations)
-    #expect(styleAtSubstring("SYNLocalThing", inOccurrenceOf: "+ (SYNLocalThing *)makeThing", source: objcLocalOriginSource, tokens: tokens) == .projectClassNames)
-    #expect(styleAtSubstring("SYNLocalThing", inOccurrenceOf: "[SYNLocalThing makeThing]", source: objcLocalOriginSource, tokens: tokens) == .projectClassNames)
+    #expect(styleAtSubstring("SYNLocalThing", inOccurrenceOf: "+ (SYNLocalThing *)makeThing", source: objcLocalOriginSource, tokens: tokens) == .otherClassNames)
+    #expect(styleAtSubstring("SYNLocalThing", inOccurrenceOf: "[SYNLocalThing makeThing]", source: objcLocalOriginSource, tokens: tokens) == .otherClassNames)
     #expect(styleAtSubstring("NSObject", inOccurrenceOf: "@interface SYNLocalThing : NSObject", source: objcLocalOriginSource, tokens: tokens) == .otherClassNames)
     #expect(styleAtSubstring("NSString", inOccurrenceOf: "+ (NSString *)runWithTarget", source: objcLocalOriginSource, tokens: tokens) == .otherClassNames)
 }
 
-@Test func objcSameFileMethodReferencesUseProjectFunctionStyles() async throws {
+@Test func objcSameFileMethodReferencesUseExternalFunctionStyles() async throws {
     let tokens = ObjCGrammar().tokenize(objcLocalOriginSource)
 
     #expect(tokens.map(\.text).joined() == objcLocalOriginSource)
     #expect(styleAtSubstring("makeThing", inOccurrenceOf: "+ (SYNLocalThing *)makeThing", source: objcLocalOriginSource, tokens: tokens) == .otherDeclarations)
-    #expect(styleAtSubstring("makeThing", inOccurrenceOf: "[self makeThing]", source: objcLocalOriginSource, tokens: tokens) == .projectFunctionAndMethodNames)
-    #expect(styleAtSubstring("makeThing", inOccurrenceOf: "[SYNLocalThing makeThing]", source: objcLocalOriginSource, tokens: tokens) == .projectFunctionAndMethodNames)
+    #expect(styleAtSubstring("makeThing", inOccurrenceOf: "[self makeThing]", source: objcLocalOriginSource, tokens: tokens) == .otherFunctionAndMethodNames)
+    #expect(styleAtSubstring("makeThing", inOccurrenceOf: "[SYNLocalThing makeThing]", source: objcLocalOriginSource, tokens: tokens) == .otherFunctionAndMethodNames)
 }
 
-@Test func objcSameFileConstructorReferencesUseProjectFunctionStyles() async throws {
+@Test func objcSameFileConstructorReferencesUseExternalFunctionStyles() async throws {
     let tokens = ObjCGrammar().tokenize(objcLocalConstructorOriginSource)
 
     #expect(tokens.map(\.text).joined() == objcLocalConstructorOriginSource)
     #expect(styleAtSubstring("init", inOccurrenceOf: "- (instancetype)init", source: objcLocalConstructorOriginSource, tokens: tokens) == .otherDeclarations)
-    #expect(styleAtSubstring("init", inOccurrenceOf: "[self init]", source: objcLocalConstructorOriginSource, tokens: tokens) == .projectFunctionAndMethodNames)
+    #expect(styleAtSubstring("init", inOccurrenceOf: "[self init]", source: objcLocalConstructorOriginSource, tokens: tokens) == .otherFunctionAndMethodNames)
 }
 
 @Test func objcImportedSdkMethodReferencesStaySystemScoped() async throws {
@@ -238,108 +381,11 @@ import Testing
     #expect(styleAtSubstring("methodForSelector", inOccurrenceOf: "[target methodForSelector:selector]", source: objcLocalOriginSource, tokens: tokens) == .otherFunctionAndMethodNames)
 }
 
-@Test func objcFallbackMethodCallWithSelfReceiverUsesLocalCallableLookup() async throws {
-    let declaration = ObjCResolvedToken(
-        text: "makeThing",
-        range: NSRange(location: 0, length: 9),
-        lexicalKind: .method,
-        resolvedKind: .methodDeclaration,
-        origin: .project,
-        referenceStyleKind: .callable,
-        receiverHint: nil,
-        isForwardClassDeclaration: false
-    )
-    let call = ObjCResolvedToken(
-        text: "makeThing",
-        range: NSRange(location: 10, length: 9),
-        lexicalKind: .method,
-        resolvedKind: .methodCall,
-        origin: nil,
-        referenceStyleKind: .callable,
-        receiverHint: .self,
-        isForwardClassDeclaration: false
-    )
-    let localSymbols = ObjCLocalSymbolIndex(semanticMatches: [], fallbackTokens: [declaration, call])
-    let context = ObjCHighlightingContext(
-        source: "[self makeThing]",
-        text: "makeThing",
-        range: call.range,
-        semantic: nil,
-        fallback: call,
-        localSymbols: localSymbols
-    )
-
-    #expect(
-        context.matchesLocalReference(
-            for: .init(
-                resolvedKind: .methodCall,
-                origin: nil,
-                referenceStyleKind: .callable
-            )
-        )
-    )
-}
-
 @Test func objcFallbackConstructorCallsCaptureReceiverHints() async throws {
     let tokens = ObjCFallbackCaptureRule.resolvedTokens(in: objcLocalConstructorOriginSource)
 
     #expect(tokens.first { $0.text == "init" && $0.receiverHint == .self } != nil)
     #expect(tokens.first { $0.text == "init" && $0.receiverHint == .typeName("SYNLocalInitThing") } != nil)
-}
-
-@Test func objcFallbackConstructorCallWithTypeReceiverUsesLocalCallableLookup() async throws {
-    let typeDeclaration = ObjCResolvedToken(
-        text: "SYNLocalInitThing",
-        range: NSRange(location: 0, length: 16),
-        lexicalKind: .type,
-        resolvedKind: .typeDeclaration,
-        origin: .project,
-        referenceStyleKind: .className,
-        receiverHint: nil,
-        isForwardClassDeclaration: false
-    )
-    let declaration = ObjCResolvedToken(
-        text: "init",
-        range: NSRange(location: 17, length: 4),
-        lexicalKind: .method,
-        resolvedKind: .methodDeclaration,
-        origin: .project,
-        referenceStyleKind: .callable,
-        receiverHint: nil,
-        isForwardClassDeclaration: false
-    )
-    let call = ObjCResolvedToken(
-        text: "init",
-        range: NSRange(location: 22, length: 4),
-        lexicalKind: .constructor,
-        resolvedKind: .methodCall,
-        origin: nil,
-        referenceStyleKind: .callable,
-        receiverHint: .typeName("SYNLocalInitThing"),
-        isForwardClassDeclaration: false
-    )
-    let localSymbols = ObjCLocalSymbolIndex(
-        semanticMatches: [],
-        fallbackTokens: [typeDeclaration, declaration, call]
-    )
-    let context = ObjCHighlightingContext(
-        source: "[SYNLocalInitThing init]",
-        text: "init",
-        range: call.range,
-        semantic: nil,
-        fallback: call,
-        localSymbols: localSymbols
-    )
-
-    #expect(
-        context.matchesLocalReference(
-            for: .init(
-                resolvedKind: .methodCall,
-                origin: nil,
-                referenceStyleKind: .callable
-            )
-        )
-    )
 }
 
 @Test func objcImplementationBodyTypeReferencesStayTypeReferencesInFallback() async throws {
@@ -372,34 +418,6 @@ import Testing
     #expect(lexicalKindAtSubstringOccurrence("selectorName", occurrence: 1, inOccurrenceOf: "boolResultFromTarget:(NSObject *)target selectorName:(NSString *)selectorName", source: source, tokens: tokens) == .function)
 }
 
-@Test func objcNilReceiverLookupDoesNotMatchClassScopedCallables() async throws {
-    let classMethod = ObjCResolvedToken(
-        text: "foo",
-        range: NSRange(location: 0, length: 3),
-        lexicalKind: .method,
-        resolvedKind: .methodDeclaration,
-        origin: .project,
-        referenceStyleKind: .callable,
-        receiverHint: nil,
-        isForwardClassDeclaration: false
-    )
-    let globalFunction = ObjCResolvedToken(
-        text: "bar",
-        range: NSRange(location: 4, length: 3),
-        lexicalKind: .function,
-        resolvedKind: .methodDeclaration,
-        origin: .project,
-        referenceStyleKind: .callable,
-        receiverHint: nil,
-        isForwardClassDeclaration: false
-    )
-    let localSymbols = ObjCLocalSymbolIndex(semanticMatches: [], fallbackTokens: [classMethod, globalFunction])
-
-    #expect(localSymbols.containsCallable(named: "foo", receiverHint: nil) == false)
-    #expect(localSymbols.containsCallable(named: "foo", receiverHint: .self))
-    #expect(localSymbols.containsCallable(named: "bar", receiverHint: nil))
-}
-
 @Test func objcSystemForwardDeclarationsDoNotSeedProjectOrigin() async throws {
     let tokens = ObjCGrammar().tokenize(objcSystemForwardDeclarationSource)
 
@@ -417,22 +435,68 @@ import Testing
     assertStyle(ObjCTheme.default.configuration.styleResolver(.otherFunctionAndMethodNames), equals: themeExpectations.defaultTheme.systemIdentifier)
 }
 
-@Test func objcSemanticFixturesStayInSyncWithPlaygroundSamples() async throws {
-    let header = try String(contentsOf: fixtureURL(named: "WKRuntimeBridge.h"), encoding: .utf8)
-    let implementation = try String(contentsOf: fixtureURL(named: "WKRuntimeBridge.m"), encoding: .utf8)
-    let playgroundHeader = try playgroundSample(named: "objcHeaderSample")
-    let playgroundImplementation = try playgroundSample(named: "objcImplementationSample")
+@Test func objcMethodDeclarationFragmentUsesFallbackBuckets() async throws {
+    let source = """
+@interface SYNFragmentGreeter : NSObject
++ (BOOL)invokeActionStateOnTarget:(NSObject *)target
+                    selectorName:(NSString *)selectorName;
+@end
+"""
+    let tokens = ObjCGrammar().tokenize(source)
 
-    #expect(header == playgroundHeader)
-    #expect(implementation == playgroundImplementation)
+    #expect(tokens.map(\.text).joined() == source)
+    #expect(styleAtSubstring("BOOL", inOccurrenceOf: "invokeActionStateOnTarget", source: source, tokens: tokens) == .keywords)
+    #expect(styleAtSubstring("invokeActionStateOnTarget", inOccurrenceOf: "invokeActionStateOnTarget", source: source, tokens: tokens) == .otherDeclarations)
+    #expect(styleAtSubstringOccurrence("selectorName", occurrence: 1, inOccurrenceOf: "selectorName:", source: source, tokens: tokens) == .otherDeclarations)
+    #expect(styleAtSubstringOccurrence("selectorName", occurrence: 2, inOccurrenceOf: "selectorName:(NSString *)selectorName", source: source, tokens: tokens) == .otherPropertiesAndGlobals)
+    #expect(styleAtSubstring("NSObject", inOccurrenceOf: "invokeActionStateOnTarget:(NSObject *)target", source: source, tokens: tokens) == .otherClassNames)
+    #expect(styleAtSubstring("NSString", inOccurrenceOf: "selectorName:(NSString *)selectorName", source: source, tokens: tokens) == .otherClassNames)
 }
 
-@Test func objcRawSemanticKindsMatchSemanticFixturePlaygroundHeader() async throws {
-    try assertSemanticFixtureMatchesRawSemanticKinds(semanticFile: "WKRuntimeBridge.h.semantic-tokens.json")
+@Test func objcMessageSendFragmentUsesExternalReferenceBuckets() async throws {
+    let source = """
+@interface SYNLocalThing : NSObject
++ (instancetype)makeThing;
+@end
+
+[SYNLocalThing makeThing];
+"""
+    let tokens = ObjCGrammar().tokenize(source)
+
+    #expect(tokens.map(\.text).joined() == source)
+    #expect(tokenStyle("SYNLocalThing", after: "@interface", in: tokens) == .typeDeclarations)
+    #expect(styleAtSubstring("SYNLocalThing", inOccurrenceOf: "[SYNLocalThing makeThing]", source: source, tokens: tokens) == .otherClassNames)
+    #expect(styleAtSubstring("makeThing", inOccurrenceOf: "[SYNLocalThing makeThing]", source: source, tokens: tokens) == .otherFunctionAndMethodNames)
 }
 
-@Test func objcRawSemanticKindsMatchSemanticFixturePlaygroundImplementation() async throws {
-    try assertSemanticFixtureMatchesRawSemanticKinds(semanticFile: "WKRuntimeBridge.m.semantic-tokens.json")
+@Test func objcTypedefAndForwardDeclarationFragmentsUseFallbackBuckets() async throws {
+    let source = """
+@class NSObject;
+typedef const struct OpaqueWKPage *WKPageRef;
+"""
+    let tokens = ObjCGrammar().tokenize(source)
+
+    #expect(tokens.map(\.text).joined() == source)
+    #expect(styleAtSubstring("NSObject", inOccurrenceOf: "@class NSObject;", source: source, tokens: tokens) == .otherClassNames)
+    #expect(styleAtSubstring("OpaqueWKPage", inOccurrenceOf: "typedef const struct OpaqueWKPage *WKPageRef;", source: source, tokens: tokens) == .otherClassNames)
+    #expect(styleAtSubstring("WKPageRef", inOccurrenceOf: "typedef const struct OpaqueWKPage *WKPageRef;", source: source, tokens: tokens) == .typeDeclarations)
+}
+
+@Test func objcPreprocessorAndLiteralMacroFragmentsUseFallbackBuckets() async throws {
+    let source = """
+#if NO
+#define FLAG NO
+#endif
+
+return nil;
+"""
+    let tokens = ObjCGrammar().tokenize(source)
+
+    #expect(tokens.map(\.text).joined() == source)
+    #expect(styleAtSubstring("NO", inOccurrenceOf: "#if NO", source: source, tokens: tokens) == .preprocessorStatements)
+    #expect(styleAtSubstring("NO", inOccurrenceOf: "#define FLAG NO", source: source, tokens: tokens) == .preprocessorStatements)
+    #expect(styleAtSubstring("return", inOccurrenceOf: "return nil;", source: source, tokens: tokens) == .keywords)
+    #expect(styleAtSubstring("nil", inOccurrenceOf: "return nil;", source: source, tokens: tokens) == .keywords)
 }
 
 private func tokenStyle(_ text: String, in tokens: [ObjCToken]) -> ObjCTheme.StyleKind? {
@@ -460,85 +524,6 @@ private func tokenStyleExactOccurrence(_ text: String, occurrence: Int, in token
     let matches = tokens.filter { $0.text == text }
     guard occurrence <= matches.count else { return nil }
     return matches[occurrence - 1].styleKind
-}
-
-private struct SemanticFixture: Decodable {
-    struct Token: Decodable {
-        let line: Int
-        let column: Int
-        let length: Int
-        let text: String
-        let tokenType: String
-        let tokenModifiers: [String]
-    }
-
-    let source: String
-    let tokens: [Token]
-}
-
-private func assertSemanticFixtureMatchesRawSemanticKinds(semanticFile: String) throws {
-    let semanticURL = fixtureURL(named: semanticFile)
-
-    let fixture = try JSONDecoder().decode(SemanticFixture.self, from: Data(contentsOf: semanticURL))
-
-    for token in fixture.tokens {
-        guard let expectedKind = expectedRawSemanticKind(for: token) else { continue }
-        let semanticToken = ObjCSemanticToken(
-            text: token.text,
-            range: NSRange(location: 0, length: token.length),
-            tokenType: token.tokenType,
-            tokenModifiers: Set(token.tokenModifiers)
-        )
-        let classification = ObjCSemanticClassifier.classify(semanticToken)
-
-        #expect(classification != nil)
-        if let classification {
-            if classification.rawKind != expectedKind {
-                Issue.record("Semantic mismatch for \(token.text) @ \(token.line):\(token.column): expected \(expectedKind), got \(classification.rawKind)")
-            }
-            #expect(classification.rawKind == expectedKind)
-            #expect(classification.modifiers == Set(token.tokenModifiers))
-        }
-    }
-}
-
-private func expectedRawSemanticKind(for token: SemanticFixture.Token) -> ObjCRawSemanticKind? {
-    let modifiers = Set(token.tokenModifiers)
-
-    switch token.tokenType {
-    case "macro":
-        return .macro
-    case "keyword", "modifier":
-        return .keyword
-    case "comment":
-        return modifiers.contains("documentation") ? .documentationComment : .comment
-    case "string":
-        return .string
-    case "number":
-        return .number
-    case "class":
-        return .className
-    case "interface":
-        return .interfaceName
-    case "struct":
-        return .structName
-    case "type":
-        return .typeName
-    case "enum":
-        return .enumName
-    case "enumMember":
-        return .enumMember
-    case "function", "method":
-        return token.tokenType == "function" ? .functionName : .methodName
-    case "parameter":
-        return .parameterName
-    case "property":
-        return .propertyName
-    case "variable":
-        return .variableName
-    default:
-        return nil
-    }
 }
 
 private func styleAtSubstring(
@@ -644,14 +629,6 @@ private func lexicalKindAtSubstringOccurrence(
     }
 
     return nil
-}
-
-private func fixtureURL(named name: String) -> URL {
-    URL(fileURLWithPath: #filePath)
-        .deletingLastPathComponent()
-        .appendingPathComponent("Fixtures")
-        .appendingPathComponent("ObjCSemantic")
-        .appendingPathComponent(name)
 }
 
 private func playgroundSample(named name: String) throws -> String {

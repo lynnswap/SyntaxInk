@@ -1,10 +1,6 @@
 import Foundation
 import SyntaxInk
 
-@available(iOS, unavailable, message: "ObjCSyntaxInk is available on macOS only.")
-@available(tvOS, unavailable, message: "ObjCSyntaxInk is available on macOS only.")
-@available(watchOS, unavailable, message: "ObjCSyntaxInk is available on macOS only.")
-@available(visionOS, unavailable, message: "ObjCSyntaxInk is available on macOS only.")
 public struct ObjCTheme: Theme {
     public typealias Token = ObjCToken
     public var configuration: Configuration

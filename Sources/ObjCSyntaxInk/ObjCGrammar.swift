@@ -1,20 +1,12 @@
 import Foundation
 import SyntaxInk
 
-@available(iOS, unavailable, message: "ObjCSyntaxInk is available on macOS only.")
-@available(tvOS, unavailable, message: "ObjCSyntaxInk is available on macOS only.")
-@available(watchOS, unavailable, message: "ObjCSyntaxInk is available on macOS only.")
-@available(visionOS, unavailable, message: "ObjCSyntaxInk is available on macOS only.")
 public struct ObjCToken: Sendable {
     public let text: String
     public let range: NSRange
     public let styleKind: ObjCTheme.StyleKind
 }
 
-@available(iOS, unavailable, message: "ObjCSyntaxInk is available on macOS only.")
-@available(tvOS, unavailable, message: "ObjCSyntaxInk is available on macOS only.")
-@available(watchOS, unavailable, message: "ObjCSyntaxInk is available on macOS only.")
-@available(visionOS, unavailable, message: "ObjCSyntaxInk is available on macOS only.")
 public struct ObjCGrammar: Grammar {
     public typealias Token = ObjCToken
 
@@ -23,9 +15,6 @@ public struct ObjCGrammar: Grammar {
     public init() {
         self.highlightRules = [
             ObjCImplementationTypeNameHighlightRule(),
-            ObjCSemanticIntrinsicHighlightRule(),
-            ObjCLocalReferenceHighlightRule(),
-            ObjCSemanticReferenceHighlightRule(),
             ObjCFallbackHighlightRule(),
         ]
     }
@@ -40,65 +29,20 @@ public struct ObjCGrammar: Grammar {
         guard code.isEmpty == false else { return [] }
 
         let fallbackTokens = ObjCFallbackCaptureRule.resolvedTokens(in: code)
-        let semanticMatches = semanticClassifications(in: code) ?? []
-        let localSymbols = ObjCLocalSymbolIndex(
-            semanticMatches: semanticMatches,
-            fallbackTokens: fallbackTokens
-        )
-
-        return mergeTokens(
-            semanticMatches,
-            fallbackTokens: fallbackTokens,
-            localSymbols: localSymbols,
-            in: code
-        )
-    }
-
-    private func semanticClassifications(in code: String) -> [ObjCSemanticMatch]? {
-        guard let semanticTokens = ObjCSemanticTokenProvider.semanticTokens(for: code) else {
-            return nil
-        }
-
-        return semanticTokens.compactMap { token in
-            guard let classification = ObjCSemanticClassifier.classify(token) else {
-                return nil
-            }
-            return ObjCSemanticMatch(token: token, classification: classification)
-        }
+        return mergeTokens(fallbackTokens, in: code)
     }
 
     private func mergeTokens(
-        _ semanticMatches: [ObjCSemanticMatch],
-        fallbackTokens: [ObjCResolvedToken],
-        localSymbols: ObjCLocalSymbolIndex,
+        _ fallbackTokens: [ObjCResolvedToken],
         in source: String
     ) -> [ObjCResolvedToken] {
-        let utf16Length = source.utf16.count
-        let boundaries = Set(
-            [0, utf16Length] +
-            semanticMatches.flatMap { [$0.token.range.location, NSMaxRange($0.token.range)] } +
-            fallbackTokens.flatMap { [$0.range.location, NSMaxRange($0.range)] }
-        )
-        .sorted()
-
         var tokens: [ObjCResolvedToken] = []
-        for index in 0..<(boundaries.count - 1) {
-            let lower = boundaries[index]
-            let upper = boundaries[index + 1]
-            guard lower < upper else { continue }
-
-            let range = NSRange(location: lower, length: upper - lower)
-            guard let stringRange = Range(range, in: source) else { continue }
-
-            let semantic = semanticMatches.first { ObjCFallbackCaptureRule.contains($0.token.range, interval: range) }
-            let fallback = fallbackTokens.first { ObjCFallbackCaptureRule.contains($0.range, interval: range) }
+        for fallback in fallbackTokens {
             let context = ObjCHighlightingContext(
                 source: source,
-                text: String(source[stringRange]),
-                range: range,
-                semantic: semantic,
-                fallback: fallback,
-                localSymbols: localSymbols
+                text: fallback.text,
+                range: fallback.range,
+                fallback: fallback
             )
             let resolution = highlightRules.lazy
                 .compactMap { $0.resolve(context) }
@@ -106,14 +50,14 @@ public struct ObjCGrammar: Grammar {
 
             let token = ObjCResolvedToken(
                 text: context.text,
-                range: range,
-                lexicalKind: fallback?.lexicalKind,
-                resolvedKind: resolution?.resolvedKind ?? fallback?.resolvedKind,
-                origin: resolution?.origin ?? fallback?.origin,
-                referenceStyleKind: resolution?.referenceStyleKind ?? fallback?.referenceStyleKind,
-                callableScope: fallback?.callableScope,
-                receiverHint: fallback?.receiverHint,
-                isForwardClassDeclaration: fallback?.isForwardClassDeclaration ?? false
+                range: context.range,
+                lexicalKind: fallback.lexicalKind,
+                resolvedKind: resolution?.resolvedKind ?? fallback.resolvedKind,
+                origin: resolution?.origin ?? fallback.origin,
+                referenceStyleKind: resolution?.referenceStyleKind ?? fallback.referenceStyleKind,
+                callableScope: fallback.callableScope,
+                receiverHint: fallback.receiverHint,
+                isForwardClassDeclaration: fallback.isForwardClassDeclaration
             )
 
             if var last = tokens.last, last.styleKind == token.styleKind, NSMaxRange(last.range) == token.range.location {

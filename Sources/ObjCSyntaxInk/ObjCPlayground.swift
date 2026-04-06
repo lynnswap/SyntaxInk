@@ -1,4 +1,4 @@
-#if DEBUG && os(macOS)
+#if DEBUG && canImport(SwiftUI)
 import SyntaxInk
 import SwiftUI
 
