@@ -10,9 +10,9 @@ import Testing
     #expect(tokenStyle("/// Greeter interface", in: tokens) == .documentationMarkup)
     #expect(tokenStyle("@interface", in: tokens) == .keywords)
     #expect(tokenStyle("SYNGreeter", in: tokens) == .typeDeclarations)
-    #expect(tokenStyle("NSObject", in: tokens) == .otherTypeNames)
-    #expect(tokenStyle("NSCopying", in: tokens) == .otherTypeNames)
-    #expect(tokenStyleExact("NSString", afterExact: ")", in: tokens) == .otherTypeNames)
+    #expect(tokenStyle("NSObject", in: tokens) == .otherClassNames)
+    #expect(tokenStyle("NSCopying", in: tokens) == .otherClassNames)
+    #expect(styleAtSubstring("NSString", inOccurrenceOf: "@property (nonatomic, copy) NSString *name;", source: objcHeaderSource, tokens: tokens) == .otherClassNames)
     #expect(tokenStyleExactOccurrence("name", occurrence: 1, in: tokens) == .otherPropertiesAndGlobals)
     #expect(tokenStyle("#import", in: tokens) == .preprocessorStatements)
 }
@@ -24,7 +24,7 @@ import Testing
     #expect(tokenStyle("@implementation", in: tokens) == .keywords)
     #expect(tokenStyle("SYNGreeter", after: "@implementation", in: tokens) == .plainText)
     #expect(tokenStyle("instancetype", in: tokens) == .keywords)
-    #expect(styleAtSubstring("NSString", inOccurrenceOf: "- (NSString *)description", source: objcImplementationSource, tokens: tokens) == .otherTypeNames)
+    #expect(styleAtSubstring("NSString", inOccurrenceOf: "- (NSString *)description", source: objcImplementationSource, tokens: tokens) == .otherClassNames)
     #expect(tokenStyle("initWithName", in: tokens) == .otherDeclarations)
     #expect(tokenStyle("description", in: tokens) == .otherDeclarations)
     #expect(tokenStyle("SYN-", in: tokens) == .string)
@@ -32,11 +32,23 @@ import Testing
     #expect(tokenStyle("self", in: tokens) == .keywords)
     #expect(tokenStyle("super", in: tokens) == .keywords)
     #expect(tokenStyleExact("init", afterExact: "super", in: tokens) == .otherFunctionAndMethodNames)
-    #expect(tokenStyleExactOccurrence("NSString", occurrence: 3, in: tokens) == .otherTypeNames)
+    #expect(styleAtSubstring("NSString", inOccurrenceOf: "[NSString stringWithFormat", source: objcImplementationSource, tokens: tokens) == .otherClassNames)
     #expect(tokenStyleExact("stringWithFormat", afterExact: "NSString", in: tokens) == .otherFunctionAndMethodNames)
     #expect(tokenStyle("_name", in: tokens) == .otherPropertiesAndGlobals)
     #expect(tokenStyle("name", after: "_name", in: tokens) == .otherPropertiesAndGlobals)
     #expect(tokenStyle("description", after: "7", in: tokens) == .otherFunctionAndMethodNames)
+}
+
+@Test func objcImplementationOpaqueStructTypedefSeparatesStructTagAndAliasStyles() async throws {
+    let tokens = ObjCGrammar().tokenize(objcImplementationSample)
+
+    #expect(tokens.map(\.text).joined() == objcImplementationSample)
+    #expect(styleAtSubstring("OpaqueWKFrameHandle", inOccurrenceOf: "typedef const struct OpaqueWKFrameHandle *WKFrameHandleRef;", source: objcImplementationSample, tokens: tokens) == .projectClassNames)
+    #expect(styleAtSubstring("WKFrameHandleRef", inOccurrenceOf: "typedef const struct OpaqueWKFrameHandle *WKFrameHandleRef;", source: objcImplementationSample, tokens: tokens) == .typeDeclarations)
+    #expect(styleAtSubstring("OpaqueWKPage", inOccurrenceOf: "typedef const struct OpaqueWKPage *WKPageRef;", source: objcImplementationSample, tokens: tokens) == .projectClassNames)
+    #expect(styleAtSubstring("WKPageRef", inOccurrenceOf: "typedef const struct OpaqueWKPage *WKPageRef;", source: objcImplementationSample, tokens: tokens) == .typeDeclarations)
+    #expect(styleAtSubstring("Getter", inOccurrenceOf: "typedef id (*Getter)(id, SEL);", source: objcImplementationSample, tokens: tokens) == .typeDeclarations)
+    #expect(styleAtSubstring("Setter", inOccurrenceOf: "typedef void (*Setter)(id, SEL, NSInteger, BOOL);", source: objcImplementationSample, tokens: tokens) == .typeDeclarations)
 }
 
 @Test func objcBuiltInFunctionLikeCapturesStayHighlighted() async throws {
@@ -58,7 +70,7 @@ import Testing
     #expect(tokenStyle("NS_ERROR_ENUM", in: tokens) == .preprocessorStatements)
     #expect(tokenStyle("nullable", in: tokens) == .keywords)
     #expect(tokenStyle("BOOL", in: tokens) == .keywords)
-    #expect(tokenStyle("NSObject", after: "@interface", in: tokens) == .otherTypeNames)
+    #expect(tokenStyle("NSObject", after: "@interface", in: tokens) == .otherClassNames)
     #expect(tokenStyle("WKRuntimeBridge", after: "@interface", in: tokens) == .typeDeclarations)
     #expect(tokenStyle("objectResultFromTarget", in: tokens) == .otherDeclarations)
     #expect(tokenStyle("selectorName", after: "target", in: tokens) == .otherDeclarations)
@@ -110,13 +122,13 @@ import Testing
     #expect(tokenStyleExactOccurrence("void", occurrence: 1, in: tokens) == .keywords)
     #expect(tokenStyleExactOccurrence("void", occurrence: 2, in: tokens) == .keywords)
     #expect(tokenStyleExactOccurrence("BOOL", occurrence: 1, in: tokens) == .keywords)
-    #expect(tokenStyle("NSInteger", in: tokens) == .otherTypeNames)
-    #expect(tokenStyle("NSErrorDomain", in: tokens) == .otherTypeNames)
-    #expect(tokenStyleExactOccurrence("NSObject", occurrence: 1, in: tokens) == .otherTypeNames)
-    #expect(tokenStyleExactOccurrence("WKWebView", occurrence: 1, in: tokens) == .otherTypeNames)
-    #expect(tokenStyleExactOccurrence("NSArray", occurrence: 1, in: tokens) == .otherTypeNames)
-    #expect(tokenStyleExactOccurrence("WKFrameInfo", occurrence: 1, in: tokens) == .otherTypeNames)
-    #expect(tokenStyleExactOccurrence("WKContentWorld", occurrence: 1, in: tokens) == .otherTypeNames)
+    #expect(styleAtSubstring("NSInteger", inOccurrenceOf: "stateRawValue:(NSInteger)stateRawValue", source: source, tokens: tokens) == .otherTypeNames)
+    #expect(styleAtSubstring("NSErrorDomain", inOccurrenceOf: "FOUNDATION_EXPORT NSErrorDomain const SYNBridgeErrorDomain;", source: source, tokens: tokens) == .otherTypeNames)
+    #expect(styleAtSubstring("NSObject", inOccurrenceOf: "+ (BOOL)invokeActionStateOnTarget:(NSObject *)target", source: source, tokens: tokens) == .otherClassNames)
+    #expect(styleAtSubstring("WKWebView", inOccurrenceOf: "+ (void)frameInfosForWebView:(WKWebView *)webView", source: source, tokens: tokens) == .otherClassNames)
+    #expect(styleAtSubstring("NSArray", inOccurrenceOf: "completionHandler:(void (^)(NSArray<WKFrameInfo *> * _Nullable frameInfos))completionHandler;", source: source, tokens: tokens) == .otherClassNames)
+    #expect(styleAtSubstring("WKFrameInfo", inOccurrenceOf: "completionHandler:(void (^)(NSArray<WKFrameInfo *> * _Nullable frameInfos))completionHandler;", source: source, tokens: tokens) == .otherClassNames)
+    #expect(styleAtSubstring("WKContentWorld", inOccurrenceOf: "contentWorld:(WKContentWorld *)contentWorld", source: source, tokens: tokens) == .otherClassNames)
     #expect(tokenStyle("frameInfosForWebView", in: tokens) == .otherDeclarations)
     #expect(styleAtSubstring("completionHandler", inOccurrenceOf: "completionHandler:", source: source, tokens: tokens) == .otherDeclarations)
     #expect(styleAtSubstring(":", inOccurrenceOf: "completionHandler:", source: source, tokens: tokens) == .plainText)
@@ -125,14 +137,37 @@ import Testing
     #expect(tokenStyle("nullable", in: tokens) == .keywords)
 }
 
+@Test func objcImplementationBodyExternalTypesUseSystemReferenceStyles() async throws {
+    let source = try playgroundSample(named: "objcImplementationSample")
+    let tokens = ObjCGrammar().tokenize(source)
+
+    #expect(styleAtSubstring("NSString", inOccurrenceOf: "for (NSString *setterName in setters)", source: source, tokens: tokens) == .otherClassNames)
+    #expect(styleAtSubstring("WKContentWorld", inOccurrenceOf: "Class worldClass = [WKContentWorld class];", source: source, tokens: tokens) == .otherClassNames)
+}
+
+@Test func objcImplementationMethodSignatureMatchesXcodeBuckets() async throws {
+    let source = try playgroundSample(named: "objcImplementationSample")
+    let tokens = ObjCGrammar().tokenize(source)
+
+    #expect(styleAtSubstring("boolResultFromTarget", inOccurrenceOf: "boolResultFromTarget:(NSObject *)target selectorName:(NSString *)selectorName", source: source, tokens: tokens) == .otherDeclarations)
+    #expect(styleAtSubstringOccurrence("selectorName", occurrence: 1, inOccurrenceOf: "boolResultFromTarget:(NSObject *)target selectorName:(NSString *)selectorName", source: source, tokens: tokens) == .otherDeclarations)
+    #expect(styleAtSubstringOccurrence("selectorName", occurrence: 2, inOccurrenceOf: "boolResultFromTarget:(NSObject *)target selectorName:(NSString *)selectorName", source: source, tokens: tokens) == .otherPropertiesAndGlobals)
+    #expect(styleAtSubstring("+", inOccurrenceOf: "boolResultFromTarget:(NSObject *)target selectorName:(NSString *)selectorName", source: source, tokens: tokens) == .plainText)
+    #expect(styleAtSubstring(":", inOccurrenceOf: "boolResultFromTarget:(NSObject *)target selectorName:(NSString *)selectorName", source: source, tokens: tokens) == .plainText)
+}
+
 @Test func objcBuiltInThemesExposeRepresentativeStyles() async throws {
     assertStyle(ObjCTheme.default.configuration.styleResolver(.plainText), equals: themeExpectations.defaultTheme.plain)
     assertStyle(ObjCTheme.defaultDark.configuration.styleResolver(.keywords), equals: themeExpectations.defaultDarkKeyword)
     assertStyle(ObjCTheme.presentationDark.configuration.styleResolver(.string), equals: themeExpectations.presentationDarkTheme.string)
-    assertStyle(ObjCTheme.default.configuration.styleResolver(.otherFunctionAndMethodNames), equals: themeExpectations.defaultTheme.plain)
+    assertStyle(ObjCTheme.default.configuration.styleResolver(.projectFunctionAndMethodNames), equals: themeExpectations.defaultTheme.projectIdentifier)
+    assertStyle(ObjCTheme.default.configuration.styleResolver(.otherFunctionAndMethodNames), equals: themeExpectations.defaultTheme.systemIdentifier)
+    assertStyle(ObjCTheme.default.configuration.styleResolver(.projectClassNames), equals: themeExpectations.defaultTheme.projectReference)
+    assertStyle(ObjCTheme.default.configuration.styleResolver(.otherClassNames), equals: themeExpectations.defaultTheme.systemReference)
+    assertStyle(ObjCTheme.default.configuration.styleResolver(.projectTypeNames), equals: themeExpectations.defaultTheme.projectReference)
     assertStyle(ObjCTheme.default.configuration.styleResolver(.otherPropertiesAndGlobals), equals: themeExpectations.defaultTheme.plain)
     assertStyle(ObjCTheme.default.configuration.styleResolver(.typeDeclarations), equals: themeExpectations.defaultTheme.typeDeclaration)
-    assertStyle(ObjCTheme.default.configuration.styleResolver(.otherTypeNames), equals: themeExpectations.defaultTheme.typeReference)
+    assertStyle(ObjCTheme.default.configuration.styleResolver(.otherTypeNames), equals: themeExpectations.defaultTheme.systemReference)
 }
 
 @Test func objcThemeBaseOverloadPreservesPlainTextBase() async throws {
@@ -162,8 +197,224 @@ import Testing
     #expect(stringToken != nil)
     assertStyle(ObjCTheme.default.configuration.styleResolver(methodToken!.styleKind), equals: themeExpectations.defaultTheme.declaration)
     assertStyle(ObjCTheme.default.configuration.styleResolver(stringToken!.styleKind), equals: themeExpectations.defaultTheme.string)
-    assertStyle(ObjCTheme.default.configuration.styleResolver(.otherFunctionAndMethodNames), equals: themeExpectations.defaultTheme.plain)
+    assertStyle(ObjCTheme.default.configuration.styleResolver(.projectFunctionAndMethodNames), equals: themeExpectations.defaultTheme.projectIdentifier)
+    assertStyle(ObjCTheme.default.configuration.styleResolver(.otherFunctionAndMethodNames), equals: themeExpectations.defaultTheme.systemIdentifier)
     assertStyle(ObjCTheme.default.configuration.styleResolver(.keywords), equals: themeExpectations.defaultTheme.keyword)
+}
+
+@Test func objcSameFileTypeReferencesUseProjectClassStyles() async throws {
+    let tokens = ObjCGrammar().tokenize(objcLocalOriginSource)
+
+    #expect(tokens.map(\.text).joined() == objcLocalOriginSource)
+    #expect(tokenStyle("SYNLocalThing", in: tokens) == .typeDeclarations)
+    #expect(styleAtSubstring("SYNLocalThing", inOccurrenceOf: "+ (SYNLocalThing *)makeThing", source: objcLocalOriginSource, tokens: tokens) == .projectClassNames)
+    #expect(styleAtSubstring("SYNLocalThing", inOccurrenceOf: "[SYNLocalThing makeThing]", source: objcLocalOriginSource, tokens: tokens) == .projectClassNames)
+    #expect(styleAtSubstring("NSObject", inOccurrenceOf: "@interface SYNLocalThing : NSObject", source: objcLocalOriginSource, tokens: tokens) == .otherClassNames)
+    #expect(styleAtSubstring("NSString", inOccurrenceOf: "+ (NSString *)runWithTarget", source: objcLocalOriginSource, tokens: tokens) == .otherClassNames)
+}
+
+@Test func objcSameFileMethodReferencesUseProjectFunctionStyles() async throws {
+    let tokens = ObjCGrammar().tokenize(objcLocalOriginSource)
+
+    #expect(tokens.map(\.text).joined() == objcLocalOriginSource)
+    #expect(styleAtSubstring("makeThing", inOccurrenceOf: "+ (SYNLocalThing *)makeThing", source: objcLocalOriginSource, tokens: tokens) == .otherDeclarations)
+    #expect(styleAtSubstring("makeThing", inOccurrenceOf: "[self makeThing]", source: objcLocalOriginSource, tokens: tokens) == .projectFunctionAndMethodNames)
+    #expect(styleAtSubstring("makeThing", inOccurrenceOf: "[SYNLocalThing makeThing]", source: objcLocalOriginSource, tokens: tokens) == .projectFunctionAndMethodNames)
+}
+
+@Test func objcSameFileConstructorReferencesUseProjectFunctionStyles() async throws {
+    let tokens = ObjCGrammar().tokenize(objcLocalConstructorOriginSource)
+
+    #expect(tokens.map(\.text).joined() == objcLocalConstructorOriginSource)
+    #expect(styleAtSubstring("init", inOccurrenceOf: "- (instancetype)init", source: objcLocalConstructorOriginSource, tokens: tokens) == .otherDeclarations)
+    #expect(styleAtSubstring("init", inOccurrenceOf: "[self init]", source: objcLocalConstructorOriginSource, tokens: tokens) == .projectFunctionAndMethodNames)
+}
+
+@Test func objcImportedSdkMethodReferencesStaySystemScoped() async throws {
+    let tokens = ObjCGrammar().tokenize(objcLocalOriginSource)
+
+    #expect(tokens.map(\.text).joined() == objcLocalOriginSource)
+    #expect(styleAtSubstring("respondsToSelector", inOccurrenceOf: "[target respondsToSelector:selector]", source: objcLocalOriginSource, tokens: tokens) == .otherFunctionAndMethodNames)
+    #expect(styleAtSubstring("methodForSelector", inOccurrenceOf: "[target methodForSelector:selector]", source: objcLocalOriginSource, tokens: tokens) == .otherFunctionAndMethodNames)
+}
+
+@Test func objcFallbackMethodCallWithSelfReceiverUsesLocalCallableLookup() async throws {
+    let declaration = ObjCResolvedToken(
+        text: "makeThing",
+        range: NSRange(location: 0, length: 9),
+        lexicalKind: .method,
+        resolvedKind: .methodDeclaration,
+        origin: .project,
+        referenceStyleKind: .callable,
+        receiverHint: nil,
+        isForwardClassDeclaration: false
+    )
+    let call = ObjCResolvedToken(
+        text: "makeThing",
+        range: NSRange(location: 10, length: 9),
+        lexicalKind: .method,
+        resolvedKind: .methodCall,
+        origin: nil,
+        referenceStyleKind: .callable,
+        receiverHint: .self,
+        isForwardClassDeclaration: false
+    )
+    let localSymbols = ObjCLocalSymbolIndex(semanticMatches: [], fallbackTokens: [declaration, call])
+    let context = ObjCHighlightingContext(
+        source: "[self makeThing]",
+        text: "makeThing",
+        range: call.range,
+        semantic: nil,
+        fallback: call,
+        localSymbols: localSymbols
+    )
+
+    #expect(
+        context.matchesLocalReference(
+            for: .init(
+                resolvedKind: .methodCall,
+                origin: nil,
+                referenceStyleKind: .callable
+            )
+        )
+    )
+}
+
+@Test func objcFallbackConstructorCallsCaptureReceiverHints() async throws {
+    let tokens = ObjCFallbackCaptureRule.resolvedTokens(in: objcLocalConstructorOriginSource)
+
+    #expect(tokens.first { $0.text == "init" && $0.receiverHint == .self } != nil)
+    #expect(tokens.first { $0.text == "init" && $0.receiverHint == .typeName("SYNLocalInitThing") } != nil)
+}
+
+@Test func objcFallbackConstructorCallWithTypeReceiverUsesLocalCallableLookup() async throws {
+    let typeDeclaration = ObjCResolvedToken(
+        text: "SYNLocalInitThing",
+        range: NSRange(location: 0, length: 16),
+        lexicalKind: .type,
+        resolvedKind: .typeDeclaration,
+        origin: .project,
+        referenceStyleKind: .className,
+        receiverHint: nil,
+        isForwardClassDeclaration: false
+    )
+    let declaration = ObjCResolvedToken(
+        text: "init",
+        range: NSRange(location: 17, length: 4),
+        lexicalKind: .method,
+        resolvedKind: .methodDeclaration,
+        origin: .project,
+        referenceStyleKind: .callable,
+        receiverHint: nil,
+        isForwardClassDeclaration: false
+    )
+    let call = ObjCResolvedToken(
+        text: "init",
+        range: NSRange(location: 22, length: 4),
+        lexicalKind: .constructor,
+        resolvedKind: .methodCall,
+        origin: nil,
+        referenceStyleKind: .callable,
+        receiverHint: .typeName("SYNLocalInitThing"),
+        isForwardClassDeclaration: false
+    )
+    let localSymbols = ObjCLocalSymbolIndex(
+        semanticMatches: [],
+        fallbackTokens: [typeDeclaration, declaration, call]
+    )
+    let context = ObjCHighlightingContext(
+        source: "[SYNLocalInitThing init]",
+        text: "init",
+        range: call.range,
+        semantic: nil,
+        fallback: call,
+        localSymbols: localSymbols
+    )
+
+    #expect(
+        context.matchesLocalReference(
+            for: .init(
+                resolvedKind: .methodCall,
+                origin: nil,
+                referenceStyleKind: .callable
+            )
+        )
+    )
+}
+
+@Test func objcImplementationBodyTypeReferencesStayTypeReferencesInFallback() async throws {
+    let source = try playgroundSample(named: "objcImplementationSample")
+    let tokens = ObjCFallbackCaptureRule.resolvedTokens(in: source)
+
+    #expect(
+        resolvedKindAtSubstring(
+            "NSString",
+            inOccurrenceOf: "for (NSString *setterName in setters)",
+            source: source,
+            tokens: tokens
+        ) == .typeReference
+    )
+    #expect(
+        resolvedKindAtSubstring(
+            "WKContentWorld",
+            inOccurrenceOf: "Class worldClass = [WKContentWorld class];",
+            source: source,
+            tokens: tokens
+        ) == .typeReference
+    )
+}
+
+@Test func objcFallbackMethodSignatureUsesFunctionLexicalBuckets() async throws {
+    let source = try playgroundSample(named: "objcImplementationSample")
+    let tokens = ObjCFallbackCaptureRule.resolvedTokens(in: source)
+
+    #expect(lexicalKindAtSubstring("boolResultFromTarget", inOccurrenceOf: "boolResultFromTarget:(NSObject *)target selectorName:(NSString *)selectorName", source: source, tokens: tokens) == .function)
+    #expect(lexicalKindAtSubstringOccurrence("selectorName", occurrence: 1, inOccurrenceOf: "boolResultFromTarget:(NSObject *)target selectorName:(NSString *)selectorName", source: source, tokens: tokens) == .function)
+}
+
+@Test func objcNilReceiverLookupDoesNotMatchClassScopedCallables() async throws {
+    let classMethod = ObjCResolvedToken(
+        text: "foo",
+        range: NSRange(location: 0, length: 3),
+        lexicalKind: .method,
+        resolvedKind: .methodDeclaration,
+        origin: .project,
+        referenceStyleKind: .callable,
+        receiverHint: nil,
+        isForwardClassDeclaration: false
+    )
+    let globalFunction = ObjCResolvedToken(
+        text: "bar",
+        range: NSRange(location: 4, length: 3),
+        lexicalKind: .function,
+        resolvedKind: .methodDeclaration,
+        origin: .project,
+        referenceStyleKind: .callable,
+        receiverHint: nil,
+        isForwardClassDeclaration: false
+    )
+    let localSymbols = ObjCLocalSymbolIndex(semanticMatches: [], fallbackTokens: [classMethod, globalFunction])
+
+    #expect(localSymbols.containsCallable(named: "foo", receiverHint: nil) == false)
+    #expect(localSymbols.containsCallable(named: "foo", receiverHint: .self))
+    #expect(localSymbols.containsCallable(named: "bar", receiverHint: nil))
+}
+
+@Test func objcSystemForwardDeclarationsDoNotSeedProjectOrigin() async throws {
+    let tokens = ObjCGrammar().tokenize(objcSystemForwardDeclarationSource)
+
+    #expect(tokens.map(\.text).joined() == objcSystemForwardDeclarationSource)
+    #expect(styleAtSubstring("NSObject", inOccurrenceOf: "@class NSObject;", source: objcSystemForwardDeclarationSource, tokens: tokens) == .otherClassNames)
+    #expect(styleAtSubstring("NSObject", inOccurrenceOf: "[NSObject class]", source: objcSystemForwardDeclarationSource, tokens: tokens) == .otherClassNames)
+}
+
+@Test func objcBuiltInThemesExposeProjectAndSystemReferenceStyles() async throws {
+    assertStyle(ObjCTheme.default.configuration.styleResolver(.projectClassNames), equals: themeExpectations.defaultTheme.projectReference)
+    assertStyle(ObjCTheme.default.configuration.styleResolver(.projectTypeNames), equals: themeExpectations.defaultTheme.projectReference)
+    assertStyle(ObjCTheme.default.configuration.styleResolver(.otherClassNames), equals: themeExpectations.defaultTheme.systemReference)
+    assertStyle(ObjCTheme.default.configuration.styleResolver(.otherTypeNames), equals: themeExpectations.defaultTheme.systemReference)
+    assertStyle(ObjCTheme.default.configuration.styleResolver(.projectFunctionAndMethodNames), equals: themeExpectations.defaultTheme.projectIdentifier)
+    assertStyle(ObjCTheme.default.configuration.styleResolver(.otherFunctionAndMethodNames), equals: themeExpectations.defaultTheme.systemIdentifier)
 }
 
 @Test func objcSemanticFixturesStayInSyncWithPlaygroundSamples() async throws {
@@ -307,6 +558,94 @@ private func styleAtSubstring(
     return tokens.first { NSLocationInRange(needleRange.location, $0.range) }?.styleKind
 }
 
+private func styleAtSubstringOccurrence(
+    _ needle: String,
+    occurrence: Int,
+    inOccurrenceOf anchor: String,
+    source: String,
+    tokens: [ObjCToken]
+) -> ObjCTheme.StyleKind? {
+    let string = source as NSString
+    let anchorRange = string.range(of: anchor)
+    guard anchorRange.location != NSNotFound else { return nil }
+    let searchRange = string.lineRange(for: anchorRange)
+
+    var currentRange = searchRange
+    for index in 1...occurrence {
+        let needleRange = string.range(of: needle, options: [], range: currentRange)
+        guard needleRange.location != NSNotFound else { return nil }
+        if index == occurrence {
+            return tokens.first { NSLocationInRange(needleRange.location, $0.range) }?.styleKind
+        }
+
+        let nextLocation = NSMaxRange(needleRange)
+        currentRange = NSRange(location: nextLocation, length: NSMaxRange(searchRange) - nextLocation)
+    }
+
+    return nil
+}
+
+private func resolvedKindAtSubstring(
+    _ needle: String,
+    inOccurrenceOf anchor: String,
+    source: String,
+    tokens: [ObjCResolvedToken]
+) -> ObjCResolvedKind? {
+    let string = source as NSString
+    let anchorRange = string.range(of: anchor)
+    guard anchorRange.location != NSNotFound else { return nil }
+
+    let searchRange = string.lineRange(for: anchorRange)
+    let needleRange = string.range(of: needle, options: [], range: searchRange)
+    guard needleRange.location != NSNotFound else { return nil }
+
+    return tokens.first { NSLocationInRange(needleRange.location, $0.range) }?.resolvedKind
+}
+
+private func lexicalKindAtSubstring(
+    _ needle: String,
+    inOccurrenceOf anchor: String,
+    source: String,
+    tokens: [ObjCResolvedToken]
+) -> ObjCLexicalKind? {
+    let string = source as NSString
+    let anchorRange = string.range(of: anchor)
+    guard anchorRange.location != NSNotFound else { return nil }
+
+    let searchRange = string.lineRange(for: anchorRange)
+    let needleRange = string.range(of: needle, options: [], range: searchRange)
+    guard needleRange.location != NSNotFound else { return nil }
+
+    return tokens.first { NSLocationInRange(needleRange.location, $0.range) }?.lexicalKind
+}
+
+private func lexicalKindAtSubstringOccurrence(
+    _ needle: String,
+    occurrence: Int,
+    inOccurrenceOf anchor: String,
+    source: String,
+    tokens: [ObjCResolvedToken]
+) -> ObjCLexicalKind? {
+    let string = source as NSString
+    let anchorRange = string.range(of: anchor)
+    guard anchorRange.location != NSNotFound else { return nil }
+    let searchRange = string.lineRange(for: anchorRange)
+
+    var currentRange = searchRange
+    for index in 1...occurrence {
+        let needleRange = string.range(of: needle, options: [], range: currentRange)
+        guard needleRange.location != NSNotFound else { return nil }
+        if index == occurrence {
+            return tokens.first { NSLocationInRange(needleRange.location, $0.range) }?.lexicalKind
+        }
+
+        let nextLocation = NSMaxRange(needleRange)
+        currentRange = NSRange(location: nextLocation, length: NSMaxRange(searchRange) - nextLocation)
+    }
+
+    return nil
+}
+
 private func fixtureURL(named name: String) -> URL {
     URL(fileURLWithPath: #filePath)
         .deletingLastPathComponent()
@@ -432,6 +771,69 @@ typedef NS_ERROR_ENUM(SYNBridgeErrorDomain, SYNBridgeErrorCode) {
 @end
 """
 
+private let objcLocalOriginSource = """
+#import <Foundation/Foundation.h>
+
+@interface SYNLocalThing : NSObject
++ (SYNLocalThing *)makeThing;
++ (NSString *)runWithTarget:(NSObject *)target;
+@end
+
+@implementation SYNLocalThing
++ (SYNLocalThing *)makeThing {
+    return [self new];
+}
+
++ (NSString *)runWithTarget:(NSObject *)target {
+    SEL selector = NSSelectorFromString(@"description");
+    [self makeThing];
+    id value = [SYNLocalThing makeThing];
+    if ([target respondsToSelector:selector]) {
+        IMP implementation = [target methodForSelector:selector];
+        if (implementation != NULL) {
+            return [value description];
+        }
+    }
+    return nil;
+}
+@end
+"""
+
+private let objcLocalConstructorOriginSource = """
+#import <Foundation/Foundation.h>
+
+@interface SYNLocalInitThing : NSObject
+- (instancetype)init;
++ (instancetype)factory;
+@end
+
+@implementation SYNLocalInitThing
+- (instancetype)init {
+    return [self init];
+}
+
++ (instancetype)factory {
+    return [SYNLocalInitThing init];
+}
+@end
+"""
+
+private let objcSystemForwardDeclarationSource = """
+#import <Foundation/Foundation.h>
+
+@class NSObject;
+
+@interface SYNSystemForwardDecl : NSObject
++ (Class)runtimeClass;
+@end
+
+@implementation SYNSystemForwardDecl
++ (Class)runtimeClass {
+    return [NSObject class];
+}
+@end
+"""
+
 private enum themeExpectations {
     static let defaultTheme = (
         plain: SyntaxStyle(font: .system(size: 12.0, weight: .regular, design: .monospaced), color: SyntaxColor(red: 0.0, green: 0.0, blue: 0.0, alpha: 0.85)),
@@ -439,7 +841,10 @@ private enum themeExpectations {
         string: SyntaxStyle(font: .system(size: 12.0, weight: .regular, design: .monospaced), color: SyntaxColor(red: 196.35, green: 26.01, blue: 21.93, alpha: 1.0)),
         declaration: SyntaxStyle(font: .system(size: 12.0, weight: .regular, design: .monospaced), color: SyntaxColor(red: 14.999992, green: 103.999965, blue: 160.000005, alpha: 1.0)),
         typeDeclaration: SyntaxStyle(font: .system(size: 12.0, weight: .regular, design: .monospaced), color: SyntaxColor(red: 11.000012, green: 79.00002, blue: 121.00005, alpha: 1.0)),
-        typeReference: SyntaxStyle(font: .system(size: 12.0, weight: .regular, design: .monospaced), color: SyntaxColor(red: 57.258465, green: 0.0, blue: 160.147395, alpha: 1.0))
+        projectReference: SyntaxStyle(font: .system(size: 12.0, weight: .regular, design: .monospaced), color: SyntaxColor(red: 28.00206, green: 69.554055, blue: 73.616205, alpha: 1.0)),
+        systemReference: SyntaxStyle(font: .system(size: 12.0, weight: .regular, design: .monospaced), color: SyntaxColor(red: 57.258465, green: 0.0, blue: 160.147395, alpha: 1.0)),
+        projectIdentifier: SyntaxStyle(font: .system(size: 12.0, weight: .regular, design: .monospaced), color: SyntaxColor(red: 49.51692, green: 109.483995, blue: 115.911015, alpha: 1.0)),
+        systemIdentifier: SyntaxStyle(font: .system(size: 12.0, weight: .regular, design: .monospaced), color: SyntaxColor(red: 107.585265, green: 54.259665, blue: 169.265175, alpha: 1.0))
     )
     static let defaultDarkKeyword = SyntaxStyle(font: .system(size: 12.0, weight: .bold, design: .monospaced), color: SyntaxColor(red: 252.04047, green: 95.25525, blue: 162.773895, alpha: 1.0))
     static let presentationDarkTheme = (

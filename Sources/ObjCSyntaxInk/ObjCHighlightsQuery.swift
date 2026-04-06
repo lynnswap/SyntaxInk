@@ -122,9 +122,6 @@ enum ObjCHighlightsQuery {
 
 (class_declaration "@" @keyword "class" @keyword)
 
-(method_definition ["+" "-"] @keyword.function)
-(method_declaration ["+" "-"] @keyword.function)
-
 [
   "__typeof__"
   "__typeof"
@@ -158,11 +155,11 @@ enum ObjCHighlightsQuery {
   "asm"
 ] @function.builtin
 
-(method_definition (identifier) @method)
+(method_definition (identifier) @function)
 
-(method_declaration (identifier) @method)
+(method_declaration (identifier) @function)
 
-(method_identifier (identifier)? @method ":" (identifier)? @method)
+(method_identifier (identifier)? @function ":" (identifier)? @function)
 
 (message_expression method: (identifier) @method.call)
 

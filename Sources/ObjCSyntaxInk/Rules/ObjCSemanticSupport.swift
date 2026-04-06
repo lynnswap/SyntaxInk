@@ -12,6 +12,11 @@ struct ObjCSemanticClassification: Sendable, Equatable {
     let modifiers: Set<String>
 }
 
+struct ObjCSemanticMatch: Sendable {
+    let token: ObjCSemanticToken
+    let classification: ObjCSemanticClassification
+}
+
 enum ObjCRawSemanticKind: Sendable, Equatable {
     case macro
     case keyword
@@ -53,13 +58,8 @@ enum ObjCFileKind: String, Sendable {
 enum ObjCSemanticClassifier {
     static func classify(_ token: ObjCSemanticToken) -> ObjCSemanticClassification? {
         let modifiers = token.tokenModifiers
-
-        // Xcode internals expose distinct buckets like `xcode.syntax.typedef`,
-        // `xcode.syntax.name.type`, `xcode.syntax.name.other`, `xcode.syntax.keyword`,
-        // and `xcode.syntax.identifier.type(.system)`. This layer intentionally keeps
-        // only the raw semantic token kind/modifiers. Visual bucket decisions belong
-        // to the ObjCGrammar stage.
         let rawKind: ObjCRawSemanticKind
+
         switch token.tokenType {
         case "macro":
             rawKind = .macro
@@ -98,5 +98,15 @@ enum ObjCSemanticClassifier {
         }
 
         return ObjCSemanticClassification(rawKind: rawKind, modifiers: modifiers)
+    }
+}
+
+enum ObjCSemanticTokenProvider {
+    static func semanticTokens(for source: String) -> [ObjCSemanticToken]? {
+#if os(macOS)
+        SourceKitLSPClient.shared.semanticTokens(for: source, kind: .infer(from: source))
+#else
+        nil
+#endif
     }
 }

@@ -13,8 +13,11 @@ enum ObjCBuiltInThemeFactory {
         // while implementation heads are handled separately in the grammar and left plain.
         (.typeDeclarations, ["xcode.syntax.declaration.type"]),
         (.otherDeclarations, ["xcode.syntax.declaration.other"]),
+        (.projectClassNames, ["xcode.syntax.identifier.class"]),
+        (.projectFunctionAndMethodNames, ["xcode.syntax.identifier.function"]),
+        (.projectTypeNames, ["xcode.syntax.identifier.type"]),
         (.otherClassNames, ["xcode.syntax.identifier.class.system", "xcode.syntax.identifier.class"]),
-        (.otherFunctionAndMethodNames, ["xcode.syntax.plain"]),
+        (.otherFunctionAndMethodNames, ["xcode.syntax.identifier.function.system", "xcode.syntax.identifier.function"]),
         (.otherTypeNames, ["xcode.syntax.identifier.type.system", "xcode.syntax.identifier.type"]),
         (.otherPropertiesAndGlobals, ["xcode.syntax.plain"]),
     ]
