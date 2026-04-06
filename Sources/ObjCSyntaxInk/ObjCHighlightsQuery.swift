@@ -162,7 +162,7 @@ enum ObjCHighlightsQuery {
 
 (method_declaration (identifier) @method)
 
-(method_identifier (identifier)? @method ":" @method (identifier)? @method)
+(method_identifier (identifier)? @method ":" (identifier)? @method)
 
 (message_expression method: (identifier) @method.call)
 
@@ -243,7 +243,7 @@ enum ObjCHighlightsQuery {
     (struct_declarator
       (identifier) @property)))
 
-(method_parameter ":" @method (identifier) @parameter)
+(method_parameter ":" (identifier) @parameter)
 
 (method_parameter declarator: (identifier) @parameter)
 
