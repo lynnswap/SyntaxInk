@@ -95,6 +95,16 @@ NS_ASSUME_NONNULL_END
 
 """
 
+
+let objcHeaderSample2 = """
+- (void)_didReceiveMemoryWarning:(id)arg0;
+- (void)_didResignContentViewControllerOfPopover:(id)arg0;
+- (void)_didRotateFromInterfaceOrientation:(long long)arg0
+                 forwardToChildControllers:(BOOL)arg1
+                                 skipSelf:(BOOL)arg2;
+- (void)_didUpdateFocusInContext:(id)arg0;
+"""
+
 let objcImplementationSample = """
 #import "WKRuntimeBridge.h"
 
@@ -596,11 +606,11 @@ NSErrorDomain const WKRuntimeBridgeErrorDomain = @"WebInspectorBridge.WKRuntimeB
 
 #Preview("Objective-C Header") {
     ObjCPlayground(code: objcHeaderSample)
-        .frame(width:1000,height:400)
 }
-
+#Preview("Objective-C Header2") {
+    ObjCPlayground(code: objcHeaderSample2)
+}
 #Preview("Objective-C Implementation") {
     ObjCPlayground(code: objcImplementationSample)
-        .frame(width:1000,height:400)
 }
 #endif

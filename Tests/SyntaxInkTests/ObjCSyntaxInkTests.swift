@@ -453,6 +453,108 @@ SYNBridgeOptions options = SYNBridgeOptionFoo;
     #expect(styleAtSubstring("NSString", inOccurrenceOf: "selectorName:(NSString *)selectorName", source: source, tokens: tokens) == .otherClassNames)
 }
 
+@Test func objcBareMethodDeclarationFragmentUsesFallbackBuckets() async throws {
+    let source = """
+- (void)_didReceiveMemoryWarning:(id)arg0;
+- (void)_didResignContentViewControllerOfPopover:(id)arg0;
+- (void)_didRotateFromInterfaceOrientation:(long long)arg0
+                 forwardToChildControllers:(BOOL)arg1
+                                 skipSelf:(BOOL)arg2;
+- (void)_didUpdateFocusInContext:(id)arg0;
+"""
+    let tokens = ObjCGrammar().tokenize(source)
+
+    #expect(tokens.map(\.text).joined() == source)
+    #expect(tokenStyleExactOccurrence("void", occurrence: 1, in: tokens) == .keywords)
+    #expect(tokenStyleExactOccurrence("id", occurrence: 1, in: tokens) == .keywords)
+    #expect(tokenStyleExactOccurrence("BOOL", occurrence: 1, in: tokens) == .keywords)
+    #expect(styleAtSubstring("_didRotateFromInterfaceOrientation", inOccurrenceOf: "_didRotateFromInterfaceOrientation:(long long)arg0", source: source, tokens: tokens) == .otherDeclarations)
+    #expect(styleAtSubstring("forwardToChildControllers", inOccurrenceOf: "forwardToChildControllers:(BOOL)arg1", source: source, tokens: tokens) == .otherDeclarations)
+    #expect(styleAtSubstring("skipSelf", inOccurrenceOf: "skipSelf:(BOOL)arg2;", source: source, tokens: tokens) == .otherDeclarations)
+    #expect(styleAtSubstring("arg0", inOccurrenceOf: "_didRotateFromInterfaceOrientation:(long long)arg0", source: source, tokens: tokens) == .otherPropertiesAndGlobals)
+    #expect(styleAtSubstring("arg1", inOccurrenceOf: "forwardToChildControllers:(BOOL)arg1", source: source, tokens: tokens) == .otherPropertiesAndGlobals)
+    #expect(styleAtSubstring("arg2", inOccurrenceOf: "skipSelf:(BOOL)arg2;", source: source, tokens: tokens) == .otherPropertiesAndGlobals)
+}
+
+@Test func objcPlaygroundMethodDeclarationFragmentUsesFallbackBuckets() async throws {
+    let source = try playgroundSample(named: "objcHeaderSample2")
+    let tokens = ObjCGrammar().tokenize(source)
+
+    #expect(tokens.map(\.text).joined() == source)
+    #expect(tokenStyleExactOccurrence("void", occurrence: 1, in: tokens) == .keywords)
+    #expect(tokenStyleExactOccurrence("id", occurrence: 1, in: tokens) == .keywords)
+    #expect(tokenStyleExactOccurrence("BOOL", occurrence: 1, in: tokens) == .keywords)
+    #expect(styleAtSubstring("_didRotateFromInterfaceOrientation", inOccurrenceOf: "_didRotateFromInterfaceOrientation:(long long)arg0", source: source, tokens: tokens) == .otherDeclarations)
+    #expect(styleAtSubstring("forwardToChildControllers", inOccurrenceOf: "forwardToChildControllers:(BOOL)arg1", source: source, tokens: tokens) == .otherDeclarations)
+    #expect(styleAtSubstring("skipSelf", inOccurrenceOf: "skipSelf:(BOOL)arg2;", source: source, tokens: tokens) == .otherDeclarations)
+    #expect(styleAtSubstring("arg0", inOccurrenceOf: "_didRotateFromInterfaceOrientation:(long long)arg0", source: source, tokens: tokens) == .otherPropertiesAndGlobals)
+    #expect(styleAtSubstring("arg1", inOccurrenceOf: "forwardToChildControllers:(BOOL)arg1", source: source, tokens: tokens) == .otherPropertiesAndGlobals)
+    #expect(styleAtSubstring("arg2", inOccurrenceOf: "skipSelf:(BOOL)arg2;", source: source, tokens: tokens) == .otherPropertiesAndGlobals)
+}
+
+@Test func objcMethodDeclarationFragmentIgnoresDirectiveWordsInCommentsAndStrings() async throws {
+    let source = """
+// @interface FakeThing
+- (void)_didReceiveMemoryWarning:(id)arg0 NS_SWIFT_NAME("@protocol");
+"""
+    let tokens = ObjCGrammar().tokenize(source)
+
+    #expect(tokens.map(\.text).joined() == source)
+    #expect(styleAtSubstring("@interface", inOccurrenceOf: "// @interface FakeThing", source: source, tokens: tokens) == .comments)
+    #expect(styleAtSubstring("@protocol", inOccurrenceOf: "NS_SWIFT_NAME(\"@protocol\")", source: source, tokens: tokens) == .string)
+    #expect(styleAtSubstring("_didReceiveMemoryWarning", inOccurrenceOf: "_didReceiveMemoryWarning:(id)arg0", source: source, tokens: tokens) == .otherDeclarations)
+    #expect(styleAtSubstring("id", inOccurrenceOf: "_didReceiveMemoryWarning:(id)arg0", source: source, tokens: tokens) == .keywords)
+    #expect(styleAtSubstring("arg0", inOccurrenceOf: "_didReceiveMemoryWarning:(id)arg0", source: source, tokens: tokens) == .otherPropertiesAndGlobals)
+}
+
+@Test func objcMethodDeclarationFragmentWithBraceBearingTypedefStaysHeaderLike() async throws {
+    let source = """
+typedef struct {
+    int rawValue;
+} SYNFlags;
+
+- (void)applyFlags:(SYNFlags)flags;
+"""
+    let tokens = ObjCGrammar().tokenize(source)
+
+    #expect(tokens.map(\.text).joined() == source)
+    #expect(styleAtSubstring("SYNFlags", inOccurrenceOf: "} SYNFlags;", source: source, tokens: tokens) == .typeDeclarations)
+    #expect(styleAtSubstring("applyFlags", inOccurrenceOf: "applyFlags:(SYNFlags)flags", source: source, tokens: tokens) == .otherDeclarations)
+    #expect(styleAtSubstring("SYNFlags", inOccurrenceOf: "applyFlags:(SYNFlags)flags", source: source, tokens: tokens) == .otherTypeNames)
+    #expect(styleAtSubstring("flags", inOccurrenceOf: "applyFlags:(SYNFlags)flags", source: source, tokens: tokens) == .otherPropertiesAndGlobals)
+}
+
+@Test func objcMethodDeclarationFragmentSupportsCarriageReturnLineEndings() async throws {
+    let source = "- (void)_didRotateFromInterfaceOrientation:(long long)arg0\r                 forwardToChildControllers:(BOOL)arg1\r                                 skipSelf:(BOOL)arg2;"
+    let tokens = ObjCGrammar().tokenize(source)
+
+    #expect(tokens.map(\.text).joined() == source)
+    #expect(styleAtSubstring("_didRotateFromInterfaceOrientation", inOccurrenceOf: "_didRotateFromInterfaceOrientation:(long long)arg0", source: source, tokens: tokens) == .otherDeclarations)
+    #expect(styleAtSubstring("forwardToChildControllers", inOccurrenceOf: "forwardToChildControllers:(BOOL)arg1", source: source, tokens: tokens) == .otherDeclarations)
+    #expect(styleAtSubstring("skipSelf", inOccurrenceOf: "skipSelf:(BOOL)arg2;", source: source, tokens: tokens) == .otherDeclarations)
+}
+
+@Test func objcMethodDeclarationFragmentSupportsCarriageReturnLineComments() async throws {
+    let source = "// @interface FakeThing\r- (void)_didReceiveMemoryWarning:(id)arg0;"
+
+    #expect(ObjCFallbackCaptureRule.debugFragmentWrapperKind(for: source) == "interface")
+}
+
+@Test func objcMethodDeclarationFragmentDoesNotWrapMixedExecutableSnippet() async throws {
+    let source = "- (void)foo; [Bar baz];"
+
+    #expect(ObjCFallbackCaptureRule.debugFragmentWrapperKind(for: source) == "none")
+}
+
+@Test func objcMethodDeclarationFragmentWithInlineStructTypeStaysHeaderLike() async throws {
+    let source = "- (void)consumeStruct:(struct { int rawValue; })value;"
+    let tokens = ObjCGrammar().tokenize(source)
+
+    #expect(tokens.map(\.text).joined() == source)
+    #expect(styleAtSubstring("consumeStruct", inOccurrenceOf: "consumeStruct:(struct { int rawValue; })value", source: source, tokens: tokens) == .otherDeclarations)
+    #expect(styleAtSubstring("value", inOccurrenceOf: "consumeStruct:(struct { int rawValue; })value", source: source, tokens: tokens) == .otherPropertiesAndGlobals)
+}
+
 @Test func objcMessageSendFragmentUsesExternalReferenceBuckets() async throws {
     let source = """
 @interface SYNLocalThing : NSObject
