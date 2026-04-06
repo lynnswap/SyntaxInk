@@ -1,27 +1,5 @@
 #if DEBUG && os(macOS)
-import SyntaxInk
 import SwiftUI
-
-struct ObjCPlayground: View {
-    var code: String
-    @Environment(\.colorScheme) private var colorScheme
-
-    var body: some View {
-        let syntaxHighlighter = ObjCSyntaxHighlighter(theme: colorScheme == .light ? .default : .defaultDark)
-        let attributedString = syntaxHighlighter.highlight(code)
-
-        ScrollView {
-            Text(attributedString)
-                .padding()
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(colorScheme == .light ? Color.xcodeBackgroundDefaultColor : .xcodeBackgroundDefaultDarkColor)
-#if os(visionOS)
-        .glassBackgroundEffect()
-#endif
-    }
-}
 
 private let objcHeaderSample = """
 #import <Foundation/Foundation.h>
@@ -37,71 +15,41 @@ private let objcHeaderSample = """
 
 private let objcImplementationSample = """
 #import <Foundation/Foundation.h>
-#import <WebKit/WebKit.h>
-#import <TargetConditionals.h>
 
-#if TARGET_OS_OSX
-#import <AppKit/AppKit.h>
-#endif
+@implementation SYNGreeter
 
-NS_ASSUME_NONNULL_BEGIN
+- (instancetype)initWithName:(NSString *)name {
+    self = [super init];
+    if (self != nil) {
+        _name = [name copy];
+    }
+    return self;
+}
 
-FOUNDATION_EXPORT NSErrorDomain const SYNBridgeErrorDomain;
-
-typedef NS_ERROR_ENUM(SYNBridgeErrorDomain, SYNBridgeErrorCode) {
-    SYNBridgeErrorCodeInvalidInput = 1,
-    SYNBridgeErrorCodeHandlerUnavailable = 2,
-    SYNBridgeErrorCodeFrameUnavailable = 3,
-    SYNBridgeErrorCodeURLCreationFailed = 4,
-};
-
-@interface SYNBridgeRuntime : NSObject
-
-+ (nullable NSObject *)objectResultFromTarget:(NSObject *)target selectorName:(NSString *)selectorName;
-+ (nullable NSNumber *)flagResultFromTarget:(NSObject *)target selectorName:(NSString *)selectorName;
-+ (BOOL)invokeVoidOnTarget:(NSObject *)target selectorName:(NSString *)selectorName;
-+ (BOOL)invokeActionStateOnTarget:(NSObject *)target
-                    selectorName:(NSString *)selectorName
-                   stateRawValue:(NSInteger)stateRawValue
-                 notifyObservers:(BOOL)notifyObservers;
-+ (void)frameInfosForWebView:(WKWebView *)webView
-           completionHandler:(void (^)(NSArray<WKFrameInfo *> * _Nullable frameInfos))completionHandler;
-+ (nullable NSValue *)frameHandleValueForFrameInfo:(WKFrameInfo *)frameInfo;
-+ (BOOL)installResourceLoadDelegateOnWebView:(WKWebView *)webView
-                                selectorName:(NSString *)selectorName
-                                    delegate:(nullable id)delegate;
-
-+ (nullable SYNBridgeRuntime *)makeBridgeWithData:(NSData *)data
-                                      classNames:(NSArray<NSString *> *)classNames
-                               allocSelectorName:(NSString *)allocSelectorName
-                                initSelectorName:(NSString *)initSelectorName;
-
-+ (BOOL)addBufferOnController:(WKUserContentController *)controller
-                 selectorName:(NSString *)selectorName
-                       buffer:(id)buffer
-                         name:(NSString *)name
-                 contentWorld:(WKContentWorld *)contentWorld
-              isPublicSignature:(BOOL)isPublicSignature;
-
-#if TARGET_OS_OSX
-+ (nullable NSWindow *)windowForView:(NSView *)view;
-#endif
+- (NSString *)description {
+    return [NSString stringWithFormat:@"SYN-%@", self.name];
+}
 
 @end
-
-@implementation SYNBridgeRuntime
-@end
-
-NS_ASSUME_NONNULL_END
-
 """
 
 #Preview("Objective-C Header") {
-    ObjCPlayground(code: objcHeaderSample)
+    ObjCSyntaxHighlighterView(
+        source: objcHeaderSample,
+        fileKind: .header,
+        theme: .default,
+        fileName: "SYNGreeter.h"
+    )
+    .frame(width: 1000, height: 700)
 }
 
 #Preview("Objective-C Implementation") {
-    ObjCPlayground(code: objcImplementationSample)
-        .frame(width:1000,height:400)
+    ObjCSyntaxHighlighterView(
+        source: objcImplementationSample,
+        fileKind: .implementation,
+        theme: .defaultDark,
+        fileName: "SYNGreeter.m"
+    )
+    .frame(width: 1000, height: 700)
 }
 #endif

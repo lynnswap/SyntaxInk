@@ -32,12 +32,16 @@ enum ObjCRawSemanticKind: Sendable, Equatable {
     case enumMember
 }
 
-enum ObjCFileKind: String, Sendable {
+public enum ObjCFileKind: String, Sendable {
     case header = "SemanticInput.h"
     case implementation = "SemanticInput.m"
 
     static func infer(from source: String) -> Self {
         source.contains("@implementation") ? .implementation : .header
+    }
+
+    public var defaultFileName: String {
+        rawValue
     }
 
     var clangLanguage: String {

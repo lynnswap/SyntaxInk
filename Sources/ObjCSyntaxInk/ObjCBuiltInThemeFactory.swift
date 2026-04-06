@@ -21,16 +21,22 @@ enum ObjCBuiltInThemeFactory {
 
     static func exactTheme(_ name: XcodeThemeName) -> ObjCTheme {
         let definition = BuiltInXcodeThemes.definition(for: name)
-        return ObjCTheme { kind in
-            definition.style(for: kind, styleKeyMap: styleKeyMap)
-        }
+        return ObjCTheme(
+            name: name,
+            configuration: .init(styleResolver: { kind in
+                definition.style(for: kind, styleKeyMap: styleKeyMap)
+            })
+        )
     }
 
     static func mergedTheme(_ name: XcodeThemeName, base: SyntaxStyle) -> ObjCTheme {
         let definition = BuiltInXcodeThemes.definition(for: name)
-        return ObjCTheme { kind in
-            guard kind != .plainText else { return base }
-            return base.mergingBuiltInThemeStyle(definition.style(for: kind, styleKeyMap: styleKeyMap))
-        }
+        return ObjCTheme(
+            name: name,
+            configuration: .init(styleResolver: { kind in
+                guard kind != .plainText else { return base }
+                return base.mergingBuiltInThemeStyle(definition.style(for: kind, styleKeyMap: styleKeyMap))
+            })
+        )
     }
 }

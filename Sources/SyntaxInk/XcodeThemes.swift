@@ -1,6 +1,6 @@
 import SwiftUI
 
-package enum XcodeThemeName: CaseIterable {
+public enum XcodeThemeName: CaseIterable, Sendable {
     case bare
     case basic
     case civic
@@ -20,6 +20,51 @@ package enum XcodeThemeName: CaseIterable {
     case printing
     case spartan
     case sunset
+}
+
+extension XcodeThemeName {
+    public var displayName: String {
+        switch self {
+        case .bare:
+            "Bare"
+        case .basic:
+            "Basic"
+        case .civic:
+            "Civic"
+        case .classicDark:
+            "Classic (Dark)"
+        case .classicLight:
+            "Classic (Light)"
+        case .default:
+            "Default (Light)"
+        case .defaultDark:
+            "Default (Dark)"
+        case .dusk:
+            "Dusk"
+        case .highContrastDark:
+            "High Contrast (Dark)"
+        case .highContrastLight:
+            "High Contrast (Light)"
+        case .lowKey:
+            "Low Key"
+        case .midnight:
+            "Midnight"
+        case .presentationDark:
+            "Presentation (Dark)"
+        case .presentationLight:
+            "Presentation (Light)"
+        case .presentationLargeDark:
+            "Presentation Large (Dark)"
+        case .presentationLargeLight:
+            "Presentation Large (Light)"
+        case .printing:
+            "Printing"
+        case .spartan:
+            "Spartan"
+        case .sunset:
+            "Sunset"
+        }
+    }
 }
 
 package struct XcodeColorThemeDefinition {

@@ -1,3 +1,7 @@
+#if os(macOS)
+import AppKit
+@testable import ObjCXcodeRuntimeShim
+#endif
 import Foundation
 import Testing
 @testable import ObjCSyntaxInk
@@ -117,7 +121,7 @@ import Testing
 }
 
 @Test func objcHighlighterPreservesSourceAndUsesThemeStyles() async throws {
-    let highlighted = ObjCSyntaxHighlighter(theme: .default).highlight(objcImplementationSource)
+    let highlighted = ObjCExactRenderer.highlight(objcImplementationSource, theme: .default)
     #expect(String(highlighted.characters) == objcImplementationSource)
 
     let tokens = ObjCGrammar().tokenize(objcImplementationSource)
@@ -131,6 +135,33 @@ import Testing
     assertStyle(ObjCTheme.default.configuration.styleResolver(.otherFunctionAndMethodNames), equals: themeExpectations.defaultTheme.plain)
     assertStyle(ObjCTheme.default.configuration.styleResolver(.keywords), equals: themeExpectations.defaultTheme.keyword)
 }
+
+#if os(macOS)
+@MainActor
+@Test func objcRuntimeShimBuildsAndUpdatesDirectViews() throws {
+    let headerHostView = try ObjCXcodeRuntimeShim.makeEditorHostView(
+        source: objcHeaderSource,
+        fileName: "SYNGreeter.h",
+        themeDisplayName: ObjCTheme.default.displayName,
+        previewMode: false
+    )
+    #expect(headerHostView.subviews.count == 1)
+    #expect(String(describing: type(of: headerHostView.subviews[0])).contains("IDESourceEditorView"))
+    RunLoop.main.run(until: Date().addingTimeInterval(0.3))
+
+    try ObjCXcodeRuntimeShim.updateEditorHostView(
+        headerHostView,
+        source: objcImplementationSource,
+        fileName: "SYNGreeter.m",
+        themeDisplayName: ObjCTheme.defaultDark.displayName,
+        previewMode: false
+    )
+    ObjCXcodeRuntimeShim.refreshEditorHostView(headerHostView, active: false)
+    RunLoop.main.run(until: Date().addingTimeInterval(0.3))
+    #expect(headerHostView.subviews.count == 1)
+    #expect(String(describing: type(of: headerHostView.subviews[0])).contains("IDESourceEditorView"))
+}
+#endif
 
 @Test func objcRawSemanticKindsMatchSemanticFixturePreviewHeader() async throws {
     try assertSemanticFixtureMatchesRawSemanticKinds(semanticFile: "PreviewHeader.h.semantic-tokens.json")

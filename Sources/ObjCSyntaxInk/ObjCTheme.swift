@@ -5,17 +5,25 @@ import SyntaxInk
 @available(tvOS, unavailable, message: "ObjCSyntaxInk is available on macOS only.")
 @available(watchOS, unavailable, message: "ObjCSyntaxInk is available on macOS only.")
 @available(visionOS, unavailable, message: "ObjCSyntaxInk is available on macOS only.")
-public struct ObjCTheme: Theme {
-    public typealias Token = ObjCToken
-    public var configuration: Configuration
+public struct ObjCTheme: Sendable, Equatable {
+    public let name: XcodeThemeName
+    let configuration: Configuration
 
-    public init(_ styleResolver: @escaping @Sendable (StyleKind) -> SyntaxStyle) {
-        self.configuration = Configuration(styleResolver: styleResolver)
+    init(name: XcodeThemeName, configuration: Configuration) {
+        self.name = name
+        self.configuration = configuration
     }
 
-    public func attributes(for token: ObjCToken) -> AttributedString {
-        AttributedString(token.text)
-            .applying(configuration.style(for: token.styleKind))
+    public init(name: XcodeThemeName) {
+        self = ObjCBuiltInThemeFactory.exactTheme(name)
+    }
+
+    public var displayName: String {
+        name.displayName
+    }
+
+    public static func == (lhs: ObjCTheme, rhs: ObjCTheme) -> Bool {
+        lhs.name == rhs.name
     }
 }
 
@@ -36,8 +44,12 @@ extension ObjCTheme {
         case otherPropertiesAndGlobals
     }
 
-    public struct Configuration: Sendable {
-        public var styleResolver: @Sendable (StyleKind) -> SyntaxStyle
+    struct Configuration: Sendable {
+        let styleResolver: @Sendable (StyleKind) -> SyntaxStyle
+
+        init(styleResolver: @escaping @Sendable (StyleKind) -> SyntaxStyle) {
+            self.styleResolver = styleResolver
+        }
 
         func style(for kind: StyleKind) -> SyntaxStyle {
             styleResolver(kind)

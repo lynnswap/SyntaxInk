@@ -10,11 +10,26 @@ let package = Package(
         .library(name: "SyntaxInk", targets: ["SyntaxInk"]),
     ],
     dependencies: [
+        .package(url: "https://github.com/p-x9/MachOKit.git", from: "0.48.0"),
         .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "601.0.0"),
         .package(url: "https://github.com/ChimeHQ/SwiftTreeSitter", from: "0.8.0"),
         .package(url: "https://github.com/tree-sitter-grammars/tree-sitter-objc", from: "3.0.2"),
     ],
     targets: [
+        .target(
+            name: "ObjCXcodeBridge",
+            publicHeadersPath: "include",
+            linkerSettings: [
+                .linkedFramework("Cocoa", .when(platforms: [.macOS])),
+            ]
+        ),
+        .target(
+            name: "ObjCXcodeRuntimeShim",
+            dependencies: [
+                "ObjCXcodeBridge",
+                .product(name: "MachOKit", package: "MachOKit"),
+            ]
+        ),
         .target(
             name: "SwiftSyntaxInk",
             dependencies: [
@@ -27,6 +42,7 @@ let package = Package(
             name: "ObjCSyntaxInk",
             dependencies: [
                 "SyntaxInk",
+                .target(name: "ObjCXcodeRuntimeShim", condition: .when(platforms: [.macOS])),
                 .product(name: "SwiftTreeSitter", package: "SwiftTreeSitter"),
                 .product(name: "TreeSitterObjc", package: "tree-sitter-objc"),
             ]
@@ -34,7 +50,7 @@ let package = Package(
         .target(name: "SyntaxInk"),
         .testTarget(
             name: "SyntaxInkTests",
-            dependencies: ["SyntaxInk", "SwiftSyntaxInk", "ObjCSyntaxInk"],
+            dependencies: ["SyntaxInk", "SwiftSyntaxInk", "ObjCSyntaxInk", "ObjCXcodeRuntimeShim"],
             exclude: ["Fixtures"]
         ),
     ]
