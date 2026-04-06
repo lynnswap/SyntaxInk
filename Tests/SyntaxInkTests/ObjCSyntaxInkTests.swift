@@ -48,8 +48,8 @@ import Testing
     #expect(tokenStyle("__real", in: tokens) == .keywords)
 }
 
-@Test func objcSemanticAndFallbackTokenizationMatchSyntheticBridgeExpectations() async throws {
-    let source = try String(contentsOf: fixtureURL(named: "WKRuntimeBridge.h"), encoding: .utf8)
+@Test func objcSemanticAndFallbackTokenizationMatchPlaygroundHeaderExpectations() async throws {
+    let source = try playgroundSample(named: "objcHeaderSample")
     let tokens = ObjCGrammar().tokenize(source)
 
     #expect(tokens.map(\.text).joined() == source)
@@ -59,7 +59,7 @@ import Testing
     #expect(tokenStyle("nullable", in: tokens) == .keywords)
     #expect(tokenStyle("BOOL", in: tokens) == .keywords)
     #expect(tokenStyle("NSObject", after: "@interface", in: tokens) == .otherTypeNames)
-    #expect(tokenStyle("SYNBridgeRuntime", after: "@interface", in: tokens) == .typeDeclarations)
+    #expect(tokenStyle("WKRuntimeBridge", after: "@interface", in: tokens) == .typeDeclarations)
     #expect(tokenStyle("objectResultFromTarget", in: tokens) == .otherDeclarations)
     #expect(tokenStyle("selectorName", after: "target", in: tokens) == .otherDeclarations)
     #expect(tokenStyleExactOccurrence("selectorName", occurrence: 2, in: tokens) == .otherPropertiesAndGlobals)
@@ -134,16 +134,22 @@ import Testing
     assertStyle(ObjCTheme.default.configuration.styleResolver(.keywords), equals: themeExpectations.defaultTheme.keyword)
 }
 
-@Test func objcRawSemanticKindsMatchSemanticFixturePreviewHeader() async throws {
-    try assertSemanticFixtureMatchesRawSemanticKinds(semanticFile: "PreviewHeader.h.semantic-tokens.json")
+@Test func objcSemanticFixturesStayInSyncWithPlaygroundSamples() async throws {
+    let header = try String(contentsOf: fixtureURL(named: "WKRuntimeBridge.h"), encoding: .utf8)
+    let implementation = try String(contentsOf: fixtureURL(named: "WKRuntimeBridge.m"), encoding: .utf8)
+    let playgroundHeader = try playgroundSample(named: "objcHeaderSample")
+    let playgroundImplementation = try playgroundSample(named: "objcImplementationSample")
+
+    #expect(header == playgroundHeader)
+    #expect(implementation == playgroundImplementation)
 }
 
-@Test func objcRawSemanticKindsMatchSemanticFixturePreviewImplementation() async throws {
-    try assertSemanticFixtureMatchesRawSemanticKinds(semanticFile: "PreviewImplementation.m.semantic-tokens.json")
-}
-
-@Test func objcRawSemanticKindsMatchSemanticFixtureSyntheticBridgeHeader() async throws {
+@Test func objcRawSemanticKindsMatchSemanticFixturePlaygroundHeader() async throws {
     try assertSemanticFixtureMatchesRawSemanticKinds(semanticFile: "WKRuntimeBridge.h.semantic-tokens.json")
+}
+
+@Test func objcRawSemanticKindsMatchSemanticFixturePlaygroundImplementation() async throws {
+    try assertSemanticFixtureMatchesRawSemanticKinds(semanticFile: "WKRuntimeBridge.m.semantic-tokens.json")
 }
 
 private func tokenStyle(_ text: String, in tokens: [ObjCToken]) -> ObjCTheme.StyleKind? {
@@ -275,6 +281,30 @@ private func fixtureURL(named name: String) -> URL {
         .appendingPathComponent("Fixtures")
         .appendingPathComponent("ObjCSemantic")
         .appendingPathComponent(name)
+}
+
+private func playgroundSample(named name: String) throws -> String {
+    let sourceURL = URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .appendingPathComponent("Sources")
+        .appendingPathComponent("ObjCSyntaxInk")
+        .appendingPathComponent("ObjCPlaygroundSamples.swift")
+
+    let source = try String(contentsOf: sourceURL, encoding: .utf8)
+    let startMarker = "let \(name) = \"\"\"\n"
+
+    guard let startRange = source.range(of: startMarker) else {
+        throw NSError(domain: "ObjCSyntaxInkTests", code: 1, userInfo: [NSLocalizedDescriptionKey: "Missing sample \(name)"])
+    }
+
+    let remainder = source[startRange.upperBound...]
+    guard let endRange = remainder.range(of: "\n\"\"\"") else {
+        throw NSError(domain: "ObjCSyntaxInkTests", code: 2, userInfo: [NSLocalizedDescriptionKey: "Unterminated sample \(name)"])
+    }
+
+    return String(remainder[..<endRange.lowerBound])
 }
 
 private func assertStyle(_ actual: SyntaxStyle, equals expected: SyntaxStyle) {
